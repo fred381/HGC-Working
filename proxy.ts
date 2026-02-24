@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
-  // Public paths
+  // Public paths — always allow
   if (path.startsWith('/auth') || path === '/login') {
     return supabaseResponse
   }
@@ -37,21 +37,6 @@ export async function middleware(request: NextRequest) {
   // Not logged in — redirect to login
   if (!user) {
     return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  // Check role for protected paths
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (path.startsWith('/admin') && profile?.role !== 'admin') {
-    return NextResponse.redirect(new URL('/carer', request.url))
-  }
-
-  if (path.startsWith('/carer') && profile?.role === 'admin') {
-    return NextResponse.redirect(new URL('/admin', request.url))
   }
 
   return supabaseResponse
