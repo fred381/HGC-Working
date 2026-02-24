@@ -1,7 +1,5 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 const FROM = 'Hamilton George Care <noreply@hamiltongeorgecare.com>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -11,6 +9,7 @@ export async function sendDocumentPublishedEmail(params: {
   documentTitle: string
   documentId: string
 }) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const { to, recipientName, documentTitle, documentId } = params
   const url = `${APP_URL}/carer/documents/${documentId}`
 
@@ -49,6 +48,7 @@ export async function sendReminderEmail(params: {
   documentTitle: string
   documentId: string
 }) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const { to, recipientName, documentTitle, documentId } = params
   const url = `${APP_URL}/carer/documents/${documentId}`
 
