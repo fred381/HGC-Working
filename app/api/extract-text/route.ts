@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
     if (ext === 'txt') {
       text = buffer.toString('utf-8')
     } else if (ext === 'docx' || ext === 'doc') {
-      const mammoth = await import('mammoth')
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mammoth = require('mammoth')
       const result = await mammoth.extractRawText({ buffer })
       text = result.value
     } else if (ext === 'pdf') {
