@@ -122,7 +122,7 @@ export default function Dashboard() {
             </li>
             <li className="flex items-start gap-2">
               <span className="bg-hgc-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
-              <span>Add your <Link to="/carers" className="font-semibold underline">carers</Link> — set their role and hourly rate</span>
+              <span>Add your <Link to="/carers" className="font-semibold underline">carers</Link> — set their role and daily rate</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="bg-hgc-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>

@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 import { CARER_ROLES } from '../data/store'
 import { Plus, Pencil, X, Search, Phone, UserCheck, UserX } from 'lucide-react'
 
-const emptyForm = { name: '', employeeId: '', role: 'Carer', contactNumber: '', hourlyRate: '' }
+const emptyForm = { name: '', employeeId: '', role: 'Carer', contactNumber: '', dailyRate: '' }
 
 export default function Carers() {
   const { carers, addCarer, updateCarer, deleteCarer, getCarerStats } = useApp()
@@ -45,7 +45,7 @@ export default function Carers() {
       employeeId: carer.employeeId || '',
       role: carer.role || 'Carer',
       contactNumber: carer.contactNumber || '',
-      hourlyRate: carer.hourlyRate ?? '',
+      dailyRate: carer.dailyRate ?? '',
     })
     setEditingId(carer.id)
     setModalOpen(true)
@@ -213,9 +213,9 @@ export default function Carers() {
                       </td>
                       <td className="px-5 py-4 text-right hidden lg:table-cell">
                         <span className="text-sm font-medium text-gray-700">
-                          {carer.hourlyRate ? `£${parseFloat(carer.hourlyRate).toFixed(2)}` : '—'}
+                          {carer.dailyRate ? `£${parseFloat(carer.dailyRate).toFixed(2)}` : '—'}
                         </span>
-                        {carer.hourlyRate > 0 && <span className="text-xs text-gray-400">/hr</span>}
+                        {carer.dailyRate > 0 && <span className="text-xs text-gray-400">/day</span>}
                       </td>
                       <td className="px-5 py-4 text-center hidden lg:table-cell">
                         {stats.shiftCount > 0 ? (
@@ -335,8 +335,8 @@ function CarerModal({ form, setForm, editingId, onSubmit, onClose, onDelete }) {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200" placeholder="e.g. 07421 334 512" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Pay Rate (£/hr)</label>
-              <input type="number" step="0.01" min="0" value={form.hourlyRate} onChange={e => setForm(f => ({ ...f, hourlyRate: e.target.value }))}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (£/day)</label>
+              <input type="number" step="0.01" min="0" value={form.dailyRate} onChange={e => setForm(f => ({ ...f, dailyRate: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200" placeholder="e.g. 14.50" />
             </div>
           </div>

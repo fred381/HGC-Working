@@ -16,15 +16,20 @@ function getCarerMonthData(carer, shifts, year, month) {
   for (const s of carerShifts) {
     totalHours += SHIFT_TYPES[s.shiftType]?.hours || 0
   }
-  const hourlyRate = parseFloat(carer.hourlyRate) || 0
-  const basePay = totalHours * hourlyRate
+  const dailyRate = parseFloat(carer.dailyRate) || 0
+  const daysWorked = uniqueDays.size
+  const basePay = daysWorked * dailyRate
+  const holidayPay = basePay * 0.1207
+  const foodAllowance = (daysWorked / 7) * 35
 
   return {
-    daysWorked: uniqueDays.size,
+    daysWorked,
     totalHours,
     shiftCount: carerShifts.length,
-    hourlyRate,
+    dailyRate,
     basePay,
+    holidayPay,
+    foodAllowance,
   }
 }
 
@@ -101,39 +106,39 @@ export default function Payroll() {
 
   function getRowTotal(row) {
     const id = row.carer.id
-    return row.basePay + numAdj(id, 'extras') + numAdj(id, 'travel') + numAdj(id, 'food') + numAdj(id, 'holiday')
+    return row.basePay + row.holidayPay + row.foodAllowance + numAdj(id, 'extras') + numAdj(id, 'travel')
   }
 
   const totals = useMemo(() => {
-    let basePay = 0, extras = 0, travel = 0, food = 0, holiday = 0, total = 0, daysWorked = 0, hours = 0
+    let basePay = 0, holidayPay = 0, foodAllowance = 0, extras = 0, travel = 0, total = 0, daysWorked = 0, hours = 0
     for (const row of payrollRows) {
       const id = row.carer.id
       basePay += row.basePay
+      holidayPay += row.holidayPay
+      foodAllowance += row.foodAllowance
       extras += numAdj(id, 'extras')
       travel += numAdj(id, 'travel')
-      food += numAdj(id, 'food')
-      holiday += numAdj(id, 'holiday')
       total += getRowTotal(row)
       daysWorked += row.daysWorked
       hours += row.totalHours
     }
-    return { basePay, extras, travel, food, holiday, total, daysWorked, hours }
+    return { basePay, holidayPay, foodAllowance, extras, travel, total, daysWorked, hours }
   }, [payrollRows, adjustments])
 
   function handleDownloadCSV() {
     const header = [
       'Employee Name', 'Employee ID', 'Month', 'Days Worked', 'Hours Worked',
-      'Hourly Rate', 'Base Pay', 'Extras', 'Travel Allowance', 'Food Allowance',
-      'Holiday Pay', 'Total',
+      'Daily Rate', 'Base Pay', 'Holiday Pay (12.07%)', 'Food Allowance (£35/wk)',
+      'Extras', 'Travel Allowance', 'Total',
     ]
     const monthLabel = `${MONTH_NAMES[month]} ${year}`
     const dataRows = payrollRows.map(row => {
       const id = row.carer.id
       return [
         row.carer.name, row.carer.employeeId || '', monthLabel, row.daysWorked,
-        row.totalHours, fmt(row.hourlyRate), fmt(row.basePay), fmt(numAdj(id, 'extras')),
-        fmt(numAdj(id, 'travel')), fmt(numAdj(id, 'food')), fmt(numAdj(id, 'holiday')),
-        fmt(getRowTotal(row)),
+        row.totalHours, fmt(row.dailyRate), fmt(row.basePay), fmt(row.holidayPay),
+        fmt(row.foodAllowance), fmt(numAdj(id, 'extras')),
+        fmt(numAdj(id, 'travel')), fmt(getRowTotal(row)),
       ]
     })
     const filename = `HGC_Payroll_${MONTH_NAMES[month]}_${year}.csv`
@@ -193,17 +198,17 @@ export default function Payroll() {
                   <th className="text-center px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-20">Days</th>
                   <th className="text-center px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-20">Hours</th>
                   <th className="text-right px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-24">Base Pay</th>
+                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-24">
+                    <span className="block">Holiday</span><span className="block">12.07%</span>
+                  </th>
+                  <th className="text-right px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-24">
+                    <span className="block">Food</span><span className="block">£35/wk</span>
+                  </th>
                   <th className="text-center px-2 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">
                     <span className="block">Extras /</span><span className="block">Bonus (£)</span>
                   </th>
                   <th className="text-center px-2 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">
                     <span className="block">Travel</span><span className="block">Allow. (£)</span>
-                  </th>
-                  <th className="text-center px-2 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">
-                    <span className="block">Food</span><span className="block">Allow. (£)</span>
-                  </th>
-                  <th className="text-center px-2 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">
-                    <span className="block">Holiday</span><span className="block">Pay (£)</span>
                   </th>
                   <th className="text-right px-4 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider w-28">Total</th>
                 </tr>
@@ -237,22 +242,22 @@ export default function Payroll() {
                       <td className="px-3 py-3 text-right">
                         <div>
                           <span className="text-sm font-medium text-hgc-900">£{fmt(row.basePay)}</span>
-                          {row.hourlyRate > 0 && (
-                            <p className="text-[10px] text-gray-400">{row.totalHours}h × £{fmt(row.hourlyRate)}</p>
+                          {row.dailyRate > 0 && (
+                            <p className="text-[10px] text-gray-400">{row.daysWorked}d × £{fmt(row.dailyRate)}</p>
                           )}
                         </div>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-gray-600">£{fmt(row.holidayPay)}</span>
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-gray-600">£{fmt(row.foodAllowance)}</span>
                       </td>
                       <td className="px-2 py-3">
                         <CurrencyInput value={getAdj(id, 'extras')} onChange={v => setAdj(id, 'extras', v)} />
                       </td>
                       <td className="px-2 py-3">
                         <CurrencyInput value={getAdj(id, 'travel')} onChange={v => setAdj(id, 'travel', v)} />
-                      </td>
-                      <td className="px-2 py-3">
-                        <CurrencyInput value={getAdj(id, 'food')} onChange={v => setAdj(id, 'food', v)} />
-                      </td>
-                      <td className="px-2 py-3">
-                        <CurrencyInput value={getAdj(id, 'holiday')} onChange={v => setAdj(id, 'holiday', v)} />
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className={`text-sm font-bold ${rowTotal > 0 ? 'text-hgc-900' : 'text-gray-400'}`}>
@@ -273,10 +278,10 @@ export default function Payroll() {
                   <td className="px-3 py-3 text-center text-sm font-bold text-hgc-900">{totals.daysWorked}</td>
                   <td className="px-3 py-3 text-center text-sm font-bold text-hgc-900">{totals.hours}h</td>
                   <td className="px-3 py-3 text-right text-sm font-bold text-hgc-900">£{fmt(totals.basePay)}</td>
+                  <td className="px-3 py-3 text-right text-sm font-bold text-hgc-900">£{fmt(totals.holidayPay)}</td>
+                  <td className="px-3 py-3 text-right text-sm font-bold text-hgc-900">£{fmt(totals.foodAllowance)}</td>
                   <td className="px-2 py-3 text-center text-sm font-bold text-hgc-900">£{fmt(totals.extras)}</td>
                   <td className="px-2 py-3 text-center text-sm font-bold text-hgc-900">£{fmt(totals.travel)}</td>
-                  <td className="px-2 py-3 text-center text-sm font-bold text-hgc-900">£{fmt(totals.food)}</td>
-                  <td className="px-2 py-3 text-center text-sm font-bold text-hgc-900">£{fmt(totals.holiday)}</td>
                   <td className="px-4 py-3 text-right">
                     <span className="text-base font-bold text-hgc-900">£{fmt(totals.total)}</span>
                   </td>
@@ -288,8 +293,8 @@ export default function Payroll() {
       )}
 
       <p className="text-xs text-gray-400 mt-3 px-1">
-        Days worked and base pay are calculated automatically from the rota.
-        Enter any extras, allowances, or holiday pay manually per carer.
+        Base pay (days worked × daily rate), holiday pay (12.07% of base pay), and food allowance (£35 per week) are calculated automatically from the rota.
+        Enter any extras or travel allowances manually per carer.
         The CSV export includes all values shown in the table.
       </p>
     </div>

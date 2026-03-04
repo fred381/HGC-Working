@@ -36,7 +36,7 @@ function buildSampleData() {
       employeeId: 'HGC-001',
       role: 'Senior Carer',
       contactNumber: '07421 334 512',
-      hourlyRate: 14.50,
+      dailyRate: 120.00,
       active: true,
     },
     {
@@ -45,7 +45,7 @@ function buildSampleData() {
       employeeId: 'HGC-002',
       role: 'Carer',
       contactNumber: '07553 221 087',
-      hourlyRate: 12.00,
+      dailyRate: 100.00,
       active: true,
     },
     {
@@ -54,7 +54,7 @@ function buildSampleData() {
       employeeId: 'HGC-003',
       role: 'Team Leader',
       contactNumber: '07700 910 345',
-      hourlyRate: 16.00,
+      dailyRate: 140.00,
       active: true,
     },
     {
@@ -63,7 +63,7 @@ function buildSampleData() {
       employeeId: 'HGC-004',
       role: 'Carer',
       contactNumber: '07812 456 223',
-      hourlyRate: 12.00,
+      dailyRate: 100.00,
       active: true,
     },
     {
@@ -72,7 +72,7 @@ function buildSampleData() {
       employeeId: 'HGC-005',
       role: 'Senior Carer',
       contactNumber: '07934 678 112',
-      hourlyRate: 14.50,
+      dailyRate: 120.00,
       active: true,
     },
   ]
@@ -204,7 +204,7 @@ export function createCarer(carers, data) {
     employeeId: data.employeeId || '',
     role: data.role || 'Carer',
     contactNumber: data.contactNumber || '',
-    hourlyRate: parseFloat(data.hourlyRate) || 0,
+    dailyRate: parseFloat(data.dailyRate) || 0,
     active: true,
   }
   const updated = [...carers, carer]
@@ -221,7 +221,7 @@ export function updateCarer(carers, id, data) {
           employeeId: data.employeeId ?? c.employeeId,
           role: data.role ?? c.role,
           contactNumber: data.contactNumber ?? c.contactNumber,
-          hourlyRate: data.hourlyRate !== undefined ? parseFloat(data.hourlyRate) || 0 : c.hourlyRate,
+          dailyRate: data.dailyRate !== undefined ? parseFloat(data.dailyRate) || 0 : c.dailyRate,
           active: data.active !== undefined ? data.active : (c.active ?? true),
         }
       : c

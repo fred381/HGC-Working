@@ -15,7 +15,7 @@ export function generatePayrollData(carer, shifts, year, month) {
   const uniqueDays = [...new Set(carerShifts.map(s => s.date))].sort()
   const daysWorked = uniqueDays.length
 
-  const hourlyRate = parseFloat(carer.hourlyRate) || 0
+  const dailyRate = parseFloat(carer.dailyRate) || 0
 
   // Break down by shift type
   const shiftBreakdown = {}
@@ -31,9 +31,10 @@ export function generatePayrollData(carer, shifts, year, month) {
     totalHours += info.hours
   }
 
-  const grossPay = totalHours * hourlyRate
+  const grossPay = daysWorked * dailyRate
   const holidayPay = grossPay * 0.1207 // UK statutory 12.07%
-  const totalPay = grossPay + holidayPay
+  const foodAllowance = (daysWorked / 7) * 35 // £35 per week
+  const totalPay = grossPay + holidayPay + foodAllowance
 
   return {
     carerName: carer.name,
@@ -43,11 +44,12 @@ export function generatePayrollData(carer, shifts, year, month) {
     year,
     daysWorked,
     totalHours,
-    hourlyRate,
+    dailyRate,
     shiftBreakdown,
     shiftCount: carerShifts.length,
     grossPay,
     holidayPay,
+    foodAllowance,
     totalPay,
     datesWorked: uniqueDays,
   }
@@ -76,9 +78,10 @@ export function exportPayrollToExcel(payrollData, carer) {
     ['Total Shifts', payrollData.shiftCount],
     ['Days Worked', payrollData.daysWorked],
     ['Total Hours', payrollData.totalHours],
-    ['Hourly Rate (£)', payrollData.hourlyRate.toFixed(2)],
+    ['Daily Rate (£)', payrollData.dailyRate.toFixed(2)],
     ['Gross Pay (£)', payrollData.grossPay.toFixed(2)],
     ['Holiday Pay (12.07%) (£)', payrollData.holidayPay.toFixed(2)],
+    ['Food Allowance (£35/wk) (£)', payrollData.foodAllowance.toFixed(2)],
     [],
     ['Total Pay (£)', payrollData.totalPay.toFixed(2)],
     [],
@@ -123,9 +126,10 @@ export function exportPayrollToCSV(payrollData, carer) {
     ['Total Shifts', payrollData.shiftCount],
     ['Days Worked', payrollData.daysWorked],
     ['Total Hours', payrollData.totalHours],
-    ['Hourly Rate (GBP)', payrollData.hourlyRate.toFixed(2)],
+    ['Daily Rate (GBP)', payrollData.dailyRate.toFixed(2)],
     ['Gross Pay (GBP)', payrollData.grossPay.toFixed(2)],
     ['Holiday Pay 12.07% (GBP)', payrollData.holidayPay.toFixed(2)],
+    ['Food Allowance £35/wk (GBP)', payrollData.foodAllowance.toFixed(2)],
     [],
     ['Total Pay (GBP)', payrollData.totalPay.toFixed(2)],
     [],
