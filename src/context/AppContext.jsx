@@ -1,148 +1,135 @@
 import { createContext, useContext, useState, useCallback } from 'react'
-import { v4 as uuidv4 } from 'uuid'
+import {
+  initialiseStore,
+  createCarer,
+  updateCarer as storUpdateCarer,
+  deleteCarer as storDeleteCarer,
+  createClient,
+  updateClient as storUpdateClient,
+  deleteClient as storDeleteClient,
+  createShift,
+  updateShift as storUpdateShift,
+  deleteShift as storDeleteShift,
+  getShiftsForDate,
+  getShiftsForMonth,
+  getCarerMonthlyStats,
+  resetStore,
+} from '../data/store'
 
 const AppContext = createContext()
 
-const STORAGE_KEYS = {
-  CLIENTS: 'hgc_clients',
-  CARERS: 'hgc_carers',
-  ASSIGNMENTS: 'hgc_assignments',
-}
-
-function loadFromStorage(key, fallback = []) {
-  try {
-    const data = localStorage.getItem(key)
-    return data ? JSON.parse(data) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function saveToStorage(key, data) {
-  localStorage.setItem(key, JSON.stringify(data))
-}
-
 export function AppProvider({ children }) {
-  const [clients, setClients] = useState(() => loadFromStorage(STORAGE_KEYS.CLIENTS))
-  const [carers, setCarers] = useState(() => loadFromStorage(STORAGE_KEYS.CARERS))
-  const [assignments, setAssignments] = useState(() => loadFromStorage(STORAGE_KEYS.ASSIGNMENTS))
+  const [state, setState] = useState(() => initialiseStore())
 
-  // Client operations
-  const addClient = useCallback((client) => {
-    const newClient = { ...client, id: uuidv4() }
-    setClients(prev => {
-      const updated = [...prev, newClient]
-      saveToStorage(STORAGE_KEYS.CLIENTS, updated)
-      return updated
-    })
-    return newClient
-  }, [])
+  // ── Carer operations ───────────────────────────────────────────────────────
 
-  const updateClient = useCallback((id, updates) => {
-    setClients(prev => {
-      const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c)
-      saveToStorage(STORAGE_KEYS.CLIENTS, updated)
-      return updated
+  const addCarer = useCallback((data) => {
+    setState(prev => {
+      const { updated, carer } = createCarer(prev.carers, data)
+      return { ...prev, carers: updated }
     })
   }, [])
 
-  const deleteClient = useCallback((id) => {
-    setClients(prev => {
-      const updated = prev.filter(c => c.id !== id)
-      saveToStorage(STORAGE_KEYS.CLIENTS, updated)
-      return updated
-    })
-    // Also remove assignments for this client
-    setAssignments(prev => {
-      const updated = prev.filter(a => a.clientId !== id)
-      saveToStorage(STORAGE_KEYS.ASSIGNMENTS, updated)
-      return updated
-    })
-  }, [])
-
-  // Carer operations
-  const addCarer = useCallback((carer) => {
-    const newCarer = { ...carer, id: uuidv4() }
-    setCarers(prev => {
-      const updated = [...prev, newCarer]
-      saveToStorage(STORAGE_KEYS.CARERS, updated)
-      return updated
-    })
-    return newCarer
-  }, [])
-
-  const updateCarer = useCallback((id, updates) => {
-    setCarers(prev => {
-      const updated = prev.map(c => c.id === id ? { ...c, ...updates } : c)
-      saveToStorage(STORAGE_KEYS.CARERS, updated)
-      return updated
-    })
+  const updateCarer = useCallback((id, data) => {
+    setState(prev => ({
+      ...prev,
+      carers: storUpdateCarer(prev.carers, id, data),
+    }))
   }, [])
 
   const deleteCarer = useCallback((id) => {
-    setCarers(prev => {
-      const updated = prev.filter(c => c.id !== id)
-      saveToStorage(STORAGE_KEYS.CARERS, updated)
-      return updated
-    })
-    // Also remove assignments for this carer
-    setAssignments(prev => {
-      const updated = prev.filter(a => a.carerId !== id)
-      saveToStorage(STORAGE_KEYS.ASSIGNMENTS, updated)
-      return updated
+    setState(prev => {
+      const { updatedCarers, updatedShifts } = storDeleteCarer(prev.carers, prev.shifts, id)
+      return { ...prev, carers: updatedCarers, shifts: updatedShifts }
     })
   }, [])
 
-  // Assignment operations
-  const addAssignment = useCallback((assignment) => {
-    const newAssignment = { ...assignment, id: uuidv4() }
-    setAssignments(prev => {
-      const updated = [...prev, newAssignment]
-      saveToStorage(STORAGE_KEYS.ASSIGNMENTS, updated)
-      return updated
-    })
-    return newAssignment
-  }, [])
+  // ── Client operations ──────────────────────────────────────────────────────
 
-  const removeAssignment = useCallback((id) => {
-    setAssignments(prev => {
-      const updated = prev.filter(a => a.id !== id)
-      saveToStorage(STORAGE_KEYS.ASSIGNMENTS, updated)
-      return updated
+  const addClient = useCallback((data) => {
+    setState(prev => {
+      const { updated, client } = createClient(prev.clients, data)
+      return { ...prev, clients: updated }
     })
   }, [])
 
-  const getAssignmentsForDate = useCallback((date) => {
-    return assignments.filter(a => a.date === date)
-  }, [assignments])
+  const updateClient = useCallback((id, data) => {
+    setState(prev => ({
+      ...prev,
+      clients: storUpdateClient(prev.clients, id, data),
+    }))
+  }, [])
 
-  const getAssignmentsForMonth = useCallback((year, month) => {
-    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
-    return assignments.filter(a => a.date.startsWith(prefix))
-  }, [assignments])
+  const deleteClient = useCallback((id) => {
+    setState(prev => {
+      const { updatedClients, updatedShifts } = storDeleteClient(prev.clients, prev.shifts, id)
+      return { ...prev, clients: updatedClients, shifts: updatedShifts }
+    })
+  }, [])
 
-  const getCarerMonthlyDays = useCallback((carerId, year, month) => {
-    const monthAssignments = getAssignmentsForMonth(year, month)
-    const carerAssignments = monthAssignments.filter(a => a.carerId === carerId)
-    const uniqueDays = new Set(carerAssignments.map(a => a.date))
-    return uniqueDays.size
-  }, [getAssignmentsForMonth])
+  // ── Shift operations ───────────────────────────────────────────────────────
+
+  const addShift = useCallback((data) => {
+    setState(prev => {
+      const { updated, shift } = createShift(prev.shifts, data)
+      return { ...prev, shifts: updated }
+    })
+  }, [])
+
+  const updateShift = useCallback((id, data) => {
+    setState(prev => ({
+      ...prev,
+      shifts: storUpdateShift(prev.shifts, id, data),
+    }))
+  }, [])
+
+  const deleteShift = useCallback((id) => {
+    setState(prev => ({
+      ...prev,
+      shifts: storDeleteShift(prev.shifts, id),
+    }))
+  }, [])
+
+  // ── Query helpers ──────────────────────────────────────────────────────────
+
+  const getShiftsOnDate = useCallback(
+    (date) => getShiftsForDate(state.shifts, date),
+    [state.shifts]
+  )
+
+  const getMonthShifts = useCallback(
+    (year, month) => getShiftsForMonth(state.shifts, year, month),
+    [state.shifts]
+  )
+
+  const getCarerStats = useCallback(
+    (carerId, year, month) => getCarerMonthlyStats(state.shifts, carerId, year, month),
+    [state.shifts]
+  )
+
+  // ── Reset (dev helper) ────────────────────────────────────────────────────
+
+  const resetAllData = useCallback(() => {
+    setState(resetStore())
+  }, [])
 
   const value = {
-    clients,
-    carers,
-    assignments,
-    addClient,
-    updateClient,
-    deleteClient,
+    carers: state.carers,
+    clients: state.clients,
+    shifts: state.shifts,
     addCarer,
     updateCarer,
     deleteCarer,
-    addAssignment,
-    removeAssignment,
-    getAssignmentsForDate,
-    getAssignmentsForMonth,
-    getCarerMonthlyDays,
+    addClient,
+    updateClient,
+    deleteClient,
+    addShift,
+    updateShift,
+    deleteShift,
+    getShiftsOnDate,
+    getMonthShifts,
+    getCarerStats,
+    resetAllData,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

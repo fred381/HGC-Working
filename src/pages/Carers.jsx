@@ -1,25 +1,15 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { CARER_ROLES } from '../data/store'
 import { Plus, Pencil, Trash2, X, Search } from 'lucide-react'
 
-const emptyCarer = {
-  name: '',
-  phone: '',
-  email: '',
-  employeeId: '',
-  niNumber: '',
-  dailyRate: '',
-  travelAllowance: '',
-  foodAllowance: '',
-  extras: '',
-  notes: '',
-}
+const emptyForm = { name: '', employeeId: '', role: 'Carer', contactNumber: '', hourlyRate: '' }
 
 export default function Carers() {
-  const { carers, addCarer, updateCarer, deleteCarer, getCarerMonthlyDays } = useApp()
+  const { carers, addCarer, updateCarer, deleteCarer, getCarerStats } = useApp()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [form, setForm] = useState(emptyCarer)
+  const [form, setForm] = useState(emptyForm)
   const [search, setSearch] = useState('')
 
   const now = new Date()
@@ -28,13 +18,13 @@ export default function Carers() {
 
   const filteredCarers = carers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.email?.toLowerCase().includes(search.toLowerCase())
+    c.employeeId?.toLowerCase().includes(search.toLowerCase()) ||
+    c.role?.toLowerCase().includes(search.toLowerCase())
   )
 
   function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return
-
     if (editingId) {
       updateCarer(editingId, form)
     } else {
@@ -46,28 +36,23 @@ export default function Carers() {
   function handleEdit(carer) {
     setForm({
       name: carer.name,
-      phone: carer.phone || '',
-      email: carer.email || '',
       employeeId: carer.employeeId || '',
-      niNumber: carer.niNumber || '',
-      dailyRate: carer.dailyRate || '',
-      travelAllowance: carer.travelAllowance || '',
-      foodAllowance: carer.foodAllowance || '',
-      extras: carer.extras || '',
-      notes: carer.notes || '',
+      role: carer.role || 'Carer',
+      contactNumber: carer.contactNumber || '',
+      hourlyRate: carer.hourlyRate ?? '',
     })
     setEditingId(carer.id)
     setShowForm(true)
   }
 
   function handleDelete(id, name) {
-    if (window.confirm(`Are you sure you want to remove ${name}? This will also remove their rota assignments.`)) {
+    if (window.confirm(`Remove ${name}? This will also remove their scheduled shifts.`)) {
       deleteCarer(id)
     }
   }
 
   function resetForm() {
-    setForm(emptyCarer)
+    setForm(emptyForm)
     setEditingId(null)
     setShowForm(false)
   }
@@ -83,8 +68,7 @@ export default function Carers() {
           onClick={() => { resetForm(); setShowForm(true) }}
           className="flex items-center gap-2 bg-hgc-600 text-white px-4 py-2 rounded-lg hover:bg-hgc-700 transition-colors text-sm font-medium"
         >
-          <Plus size={16} />
-          Add Carer
+          <Plus size={16} /> Add Carer
         </button>
       </div>
 
@@ -94,130 +78,72 @@ export default function Carers() {
             <h3 className="text-lg font-semibold text-gray-900">
               {editingId ? 'Edit Carer' : 'New Carer'}
             </h3>
-            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
-              <X size={20} />
-            </button>
+            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
           </div>
-          <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. Jane Doe"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. 07700 900456"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="jane@example.com"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
-                <input
-                  type="text"
-                  value={form.employeeId}
-                  onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. HGC001"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">NI Number</label>
-                <input
-                  type="text"
-                  value={form.niNumber}
-                  onChange={e => setForm(f => ({ ...f, niNumber: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. QQ 12 34 56 A"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Daily Rate (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.dailyRate}
-                  onChange={e => setForm(f => ({ ...f, dailyRate: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. 120.00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Travel Allowance / Day (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.travelAllowance}
-                  onChange={e => setForm(f => ({ ...f, travelAllowance: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. 10.00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Food Allowance / Day (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.foodAllowance}
-                  onChange={e => setForm(f => ({ ...f, foodAllowance: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. 5.00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Extras/Bonuses (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={form.extras}
-                  onChange={e => setForm(f => ({ ...f, extras: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  placeholder="e.g. 50.00"
-                />
-              </div>
-              <div className="sm:col-span-2 lg:col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea
-                  value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
-                  rows={2}
-                  placeholder="Any additional notes about this carer"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
+                placeholder="e.g. Amina Osei"
+                required
+              />
             </div>
-            <div className="flex gap-3 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+              <input
+                type="text"
+                value={form.employeeId}
+                onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
+                placeholder="e.g. HGC-006"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <select
+                value={form.role}
+                onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
+              >
+                {CARER_ROLES.map(role => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+              <input
+                type="tel"
+                value={form.contactNumber}
+                onChange={e => setForm(f => ({ ...f, contactNumber: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
+                placeholder="e.g. 07421 334 512"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hourly Rate (£)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.hourlyRate}
+                onChange={e => setForm(f => ({ ...f, hourlyRate: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-500 focus:border-transparent outline-none"
+                placeholder="e.g. 14.50"
+              />
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3 flex gap-3 mt-2">
               <button
                 type="submit"
                 className="bg-hgc-600 text-white px-6 py-2 rounded-lg hover:bg-hgc-700 transition-colors text-sm font-medium"
               >
                 {editingId ? 'Update Carer' : 'Add Carer'}
               </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
+              <button type="button" onClick={resetForm} className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
                 Cancel
               </button>
             </div>
@@ -252,51 +178,55 @@ export default function Carers() {
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee ID</th>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Phone</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Daily Rate</th>
-                <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Days This Month</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Role</th>
+                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Contact</th>
+                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Rate</th>
+                <th className="text-center px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">This Month</th>
                 <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredCarers.map(carer => (
-                <tr key={carer.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-gray-900">{carer.name}</span>
-                    {carer.employeeId && (
-                      <p className="text-xs text-gray-500 mt-0.5">ID: {carer.employeeId}</p>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 hidden sm:table-cell">{carer.phone || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">
-                    {carer.dailyRate ? `£${parseFloat(carer.dailyRate).toFixed(2)}` : '—'}
-                  </td>
-                  <td className="px-6 py-4 text-center hidden lg:table-cell">
-                    <span className="inline-flex items-center justify-center bg-hgc-50 text-hgc-700 text-sm font-medium rounded-full px-3 py-0.5">
-                      {getCarerMonthlyDays(carer.id, currentYear, currentMonth)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(carer)}
-                        className="text-gray-400 hover:text-hgc-600 transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(carer.id, carer.name)}
-                        className="text-gray-400 hover:text-red-600 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredCarers.map(carer => {
+                const stats = getCarerStats(carer.id, currentYear, currentMonth)
+                return (
+                  <tr key={carer.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                        {carer.employeeId || '—'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-medium text-gray-900">{carer.name}</span>
+                    </td>
+                    <td className="px-6 py-4 hidden sm:table-cell">
+                      <span className="inline-flex items-center text-xs font-medium bg-hgc-50 text-hgc-700 rounded-full px-2.5 py-0.5">
+                        {carer.role || 'Carer'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{carer.contactNumber || '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-600 text-right hidden lg:table-cell">
+                      {carer.hourlyRate ? `£${parseFloat(carer.hourlyRate).toFixed(2)}/hr` : '—'}
+                    </td>
+                    <td className="px-6 py-4 text-center hidden lg:table-cell">
+                      <span className="text-xs text-gray-600">
+                        {stats.daysWorked}d / {stats.totalHours}h / {stats.shiftCount} shifts
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEdit(carer)} className="text-gray-400 hover:text-hgc-600 transition-colors" title="Edit">
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => handleDelete(carer.id, carer.name)} className="text-gray-400 hover:text-red-600 transition-colors" title="Delete">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

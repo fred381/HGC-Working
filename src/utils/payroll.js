@@ -1,42 +1,52 @@
 import * as XLSX from 'xlsx'
+import { SHIFT_TYPES } from '../data/store'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ]
 
-export function generatePayrollData(carer, assignments, year, month) {
-  const monthAssignments = assignments.filter(a => {
-    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
-    return a.carerId === carer.id && a.date.startsWith(prefix)
-  })
+export function generatePayrollData(carer, shifts, year, month) {
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
+  const carerShifts = shifts.filter(
+    s => s.carerId === carer.id && s.date.startsWith(prefix)
+  )
 
-  const uniqueDays = [...new Set(monthAssignments.map(a => a.date))].sort()
+  const uniqueDays = [...new Set(carerShifts.map(s => s.date))].sort()
   const daysWorked = uniqueDays.length
 
-  const dailyRate = parseFloat(carer.dailyRate) || 0
-  const travelAllowance = parseFloat(carer.travelAllowance) || 0
-  const foodAllowance = parseFloat(carer.foodAllowance) || 0
-  const extras = parseFloat(carer.extras) || 0
+  const hourlyRate = parseFloat(carer.hourlyRate) || 0
 
-  const grossPay = daysWorked * dailyRate
-  const totalTravel = daysWorked * travelAllowance
-  const totalFood = daysWorked * foodAllowance
-  const holidayPay = grossPay * 0.1207 // UK statutory holiday pay accrual (12.07%)
-  const totalPay = grossPay + totalTravel + totalFood + extras + holidayPay
+  // Break down by shift type
+  const shiftBreakdown = {}
+  let totalHours = 0
+  for (const s of carerShifts) {
+    const info = SHIFT_TYPES[s.shiftType] || SHIFT_TYPES.full_day
+    const key = s.shiftType
+    if (!shiftBreakdown[key]) {
+      shiftBreakdown[key] = { label: info.label, hours: info.hours, count: 0, totalHours: 0 }
+    }
+    shiftBreakdown[key].count++
+    shiftBreakdown[key].totalHours += info.hours
+    totalHours += info.hours
+  }
+
+  const grossPay = totalHours * hourlyRate
+  const holidayPay = grossPay * 0.1207 // UK statutory 12.07%
+  const totalPay = grossPay + holidayPay
 
   return {
     carerName: carer.name,
+    employeeId: carer.employeeId || 'N/A',
+    role: carer.role || 'Carer',
     month: MONTH_NAMES[month],
     year,
     daysWorked,
-    dailyRate,
+    totalHours,
+    hourlyRate,
+    shiftBreakdown,
+    shiftCount: carerShifts.length,
     grossPay,
-    travelAllowance,
-    totalTravel,
-    foodAllowance,
-    totalFood,
-    extras,
     holidayPay,
     totalPay,
     datesWorked: uniqueDays,
@@ -44,39 +54,44 @@ export function generatePayrollData(carer, assignments, year, month) {
 }
 
 export function exportPayrollToExcel(payrollData, carer) {
-  const summaryData = [
-    ['Hamilton George Care - Payroll Sheet'],
+  const rows = [
+    ['Hamilton George Care — Payroll Sheet'],
     [],
     ['Carer Name', payrollData.carerName],
+    ['Employee ID', payrollData.employeeId],
+    ['Role', payrollData.role],
     ['Month', `${payrollData.month} ${payrollData.year}`],
-    ['Employee ID', carer.employeeId || 'N/A'],
-    ['NI Number', carer.niNumber || 'N/A'],
+    [],
+    ['Shift Breakdown'],
+    ['Type', 'Count', 'Hours per Shift', 'Total Hours'],
+  ]
+
+  for (const [, info] of Object.entries(payrollData.shiftBreakdown)) {
+    rows.push([info.label, info.count, info.hours, info.totalHours])
+  }
+
+  rows.push(
     [],
     ['Summary'],
+    ['Total Shifts', payrollData.shiftCount],
     ['Days Worked', payrollData.daysWorked],
-    ['Daily Rate (£)', payrollData.dailyRate.toFixed(2)],
+    ['Total Hours', payrollData.totalHours],
+    ['Hourly Rate (£)', payrollData.hourlyRate.toFixed(2)],
     ['Gross Pay (£)', payrollData.grossPay.toFixed(2)],
-    ['Travel Allowance per Day (£)', payrollData.travelAllowance.toFixed(2)],
-    ['Total Travel (£)', payrollData.totalTravel.toFixed(2)],
-    ['Food Allowance per Day (£)', payrollData.foodAllowance.toFixed(2)],
-    ['Total Food (£)', payrollData.totalFood.toFixed(2)],
-    ['Extras/Bonuses (£)', payrollData.extras.toFixed(2)],
     ['Holiday Pay (12.07%) (£)', payrollData.holidayPay.toFixed(2)],
     [],
     ['Total Pay (£)', payrollData.totalPay.toFixed(2)],
     [],
     [],
     ['Dates Worked'],
-  ]
+  )
 
-  payrollData.datesWorked.forEach(date => {
-    summaryData.push([date])
-  })
+  for (const date of payrollData.datesWorked) {
+    rows.push([date])
+  }
 
-  const ws = XLSX.utils.aoa_to_sheet(summaryData)
-
-  // Set column widths
-  ws['!cols'] = [{ wch: 30 }, { wch: 20 }]
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+  ws['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 16 }, { wch: 14 }]
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Payroll')
@@ -87,37 +102,46 @@ export function exportPayrollToExcel(payrollData, carer) {
 
 export function exportPayrollToCSV(payrollData, carer) {
   const rows = [
-    ['Hamilton George Care - Payroll Sheet'],
+    ['Hamilton George Care — Payroll Sheet'],
     [],
     ['Carer Name', payrollData.carerName],
+    ['Employee ID', payrollData.employeeId],
+    ['Role', payrollData.role],
     ['Month', `${payrollData.month} ${payrollData.year}`],
-    ['Employee ID', carer.employeeId || 'N/A'],
-    ['NI Number', carer.niNumber || 'N/A'],
+    [],
+    ['Shift Breakdown'],
+    ['Type', 'Count', 'Hours per Shift', 'Total Hours'],
+  ]
+
+  for (const [, info] of Object.entries(payrollData.shiftBreakdown)) {
+    rows.push([info.label, info.count, info.hours, info.totalHours])
+  }
+
+  rows.push(
     [],
     ['Summary'],
+    ['Total Shifts', payrollData.shiftCount],
     ['Days Worked', payrollData.daysWorked],
-    ['Daily Rate (GBP)', payrollData.dailyRate.toFixed(2)],
+    ['Total Hours', payrollData.totalHours],
+    ['Hourly Rate (GBP)', payrollData.hourlyRate.toFixed(2)],
     ['Gross Pay (GBP)', payrollData.grossPay.toFixed(2)],
-    ['Travel Allowance per Day (GBP)', payrollData.travelAllowance.toFixed(2)],
-    ['Total Travel (GBP)', payrollData.totalTravel.toFixed(2)],
-    ['Food Allowance per Day (GBP)', payrollData.foodAllowance.toFixed(2)],
-    ['Total Food (GBP)', payrollData.totalFood.toFixed(2)],
-    ['Extras/Bonuses (GBP)', payrollData.extras.toFixed(2)],
     ['Holiday Pay 12.07% (GBP)', payrollData.holidayPay.toFixed(2)],
     [],
     ['Total Pay (GBP)', payrollData.totalPay.toFixed(2)],
     [],
     ['Dates Worked'],
-  ]
+  )
 
-  payrollData.datesWorked.forEach(date => {
+  for (const date of payrollData.datesWorked) {
     rows.push([date])
-  })
+  }
 
-  const csvContent = rows.map(row => row.map(cell => {
-    const str = String(cell ?? '')
-    return str.includes(',') ? `"${str}"` : str
-  }).join(',')).join('\n')
+  const csvContent = rows.map(row =>
+    row.map(cell => {
+      const str = String(cell ?? '')
+      return str.includes(',') ? `"${str}"` : str
+    }).join(',')
+  ).join('\n')
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
