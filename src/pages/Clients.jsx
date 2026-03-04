@@ -261,13 +261,15 @@ export default function Clients() {
 
 function ClientModal({ form, setForm, editingId, onSubmit, onClose, onDelete }) {
   const nameRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     nameRef.current?.focus()
-    function onKey(e) { if (e.key === 'Escape') onClose() }
+    function onKey(e) { if (e.key === 'Escape') onCloseRef.current() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
