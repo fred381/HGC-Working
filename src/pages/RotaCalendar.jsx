@@ -93,14 +93,17 @@ export default function RotaCalendar() {
     const carersWorking = uniqueCarerIds.size
 
     // Days with no cover: weekdays where no client has any shift
+    // (only meaningful when there are clients to cover)
     const daysNoCover = []
-    for (const d of days) {
-      if (d.isWeekend) continue
-      const hasAnyShift = clients.some(client => {
-        const key = `${client.id}|${d.dateStr}`
-        return shiftGrid[key] && shiftGrid[key].length > 0
-      })
-      if (!hasAnyShift) daysNoCover.push(d.day)
+    if (clients.length > 0) {
+      for (const d of days) {
+        if (d.isWeekend) continue
+        const hasAnyShift = clients.some(client => {
+          const key = `${client.id}|${d.dateStr}`
+          return shiftGrid[key] && shiftGrid[key].length > 0
+        })
+        if (!hasAnyShift) daysNoCover.push(d.day)
+      }
     }
 
     return { totalShifts, carersWorking, daysNoCover }

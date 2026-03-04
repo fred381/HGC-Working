@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import { SHIFT_TYPES } from '../data/store'
-import { Download, ChevronLeft, ChevronRight, FileSpreadsheet, Plus } from 'lucide-react'
+import { Download, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react'
 import { MONTH_NAMES } from '../utils/dates'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ function downloadCSV(rows, filename) {
     )
     .join('\n')
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url

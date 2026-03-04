@@ -44,7 +44,7 @@ export default function Layout({ children }) {
                     }`
                   }
                 >
-                  <Icon size={16} strokeWidth={isActive => isActive ? 2.5 : 2} />
+                  <Icon size={16} />
                   {label}
                 </NavLink>
               ))}
