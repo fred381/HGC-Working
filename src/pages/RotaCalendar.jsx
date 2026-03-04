@@ -320,7 +320,11 @@ export default function RotaCalendar() {
               </thead>
 
               <tbody>
-                {(filterClientId ? clients.filter(c => c.id === filterClientId) : clients).map(client => (
+                {clients.filter(c => {
+                  if (filterClientId && c.id !== filterClientId) return false
+                  if (filterCarerId && !monthShifts.some(s => s.clientId === c.id && s.carerId === filterCarerId)) return false
+                  return true
+                }).map(client => (
                   <tr key={client.id} className="group">
                     <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50/80 border-b border-r border-gray-200 px-4 py-2.5 transition-colors duration-150">
                       <div className="text-sm font-medium text-hgc-900 truncate max-w-[160px]">{client.name}</div>
