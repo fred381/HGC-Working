@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { SHIFT_TYPES } from '../data/store'
-import { ChevronLeft, ChevronRight, X, Plus, Trash2, Clock, CalendarDays, Users, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, Plus, Trash2, Clock, CalendarDays, Users, AlertTriangle, Filter } from 'lucide-react'
 import { MONTH_NAMES, getDaysInMonth, formatDate } from '../utils/dates'
 
 // ─── Carer colour palette ────────────────────────────────────────────────────
@@ -38,6 +38,8 @@ export default function RotaCalendar() {
   const { clients: allClients, carers: allCarers, shifts, addShift, addShiftsBatch, updateShift, deleteShift, getCarerStats } = useApp()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [modal, setModal] = useState(null)
+  const [filterClientId, setFilterClientId] = useState('')
+  const [filterCarerId, setFilterCarerId] = useState('')
 
   const clients = useMemo(() => allClients.filter(c => c.active !== false), [allClients])
   const carers = allCarers
@@ -237,6 +239,47 @@ export default function RotaCalendar() {
         </div>
       )}
 
+      {/* ── Filter bar ── */}
+      {clients.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 mb-4 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <Filter size={15} />
+            <span className="text-[11px] font-semibold uppercase tracking-wider">Filters</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 flex-1">
+            <select
+              value={filterClientId}
+              onChange={e => setFilterClientId(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200 min-w-[170px]"
+            >
+              <option value="">All Clients</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <select
+              value={filterCarerId}
+              onChange={e => setFilterCarerId(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200 min-w-[170px]"
+            >
+              <option value="">All Carers</option>
+              {carers.map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({c.role})</option>
+              ))}
+            </select>
+            {(filterClientId || filterCarerId) && (
+              <button
+                onClick={() => { setFilterClientId(''); setFilterCarerId('') }}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-hgc-700 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg transition-all duration-200 font-medium"
+              >
+                <X size={14} />
+                Clear Filters
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Grid ── */}
       {clients.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-16 text-center">
@@ -277,7 +320,7 @@ export default function RotaCalendar() {
               </thead>
 
               <tbody>
-                {clients.map(client => (
+                {(filterClientId ? clients.filter(c => c.id === filterClientId) : clients).map(client => (
                   <tr key={client.id} className="group">
                     <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50/80 border-b border-r border-gray-200 px-4 py-2.5 transition-colors duration-150">
                       <div className="text-sm font-medium text-hgc-900 truncate max-w-[160px]">{client.name}</div>
@@ -288,7 +331,10 @@ export default function RotaCalendar() {
 
                     {days.map(d => {
                       const key = `${client.id}|${d.dateStr}`
-                      const cellShifts = shiftGrid[key] || []
+                      const allCellShifts = shiftGrid[key] || []
+                      const cellShifts = filterCarerId
+                        ? allCellShifts.filter(s => s.carerId === filterCarerId)
+                        : allCellShifts
                       const hasShifts = cellShifts.length > 0
 
                       return (
