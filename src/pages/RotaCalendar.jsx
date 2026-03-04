@@ -37,9 +37,14 @@ const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export default function RotaCalendar() {
-  const { clients, carers, shifts, addShift, updateShift, deleteShift, getCarerStats } = useApp()
+  const { clients: allClients, carers: allCarers, shifts, addShift, updateShift, deleteShift, getCarerStats } = useApp()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [modal, setModal] = useState(null) // { clientId, date, day }
+
+  // Only show active clients as rows; keep all carers for colour mapping
+  const clients = useMemo(() => allClients.filter(c => c.active !== false), [allClients])
+  const carers = allCarers
+  const activeCarers = useMemo(() => allCarers.filter(c => c.active !== false), [allCarers])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -325,6 +330,7 @@ export default function RotaCalendar() {
           modal={modal}
           clients={clients}
           carers={carers}
+          activeCarers={activeCarers}
           shifts={shiftGrid[`${modal.clientId}|${modal.date}`] || []}
           carerColourMap={carerColourMap}
           onAdd={addShift}
@@ -341,7 +347,7 @@ export default function RotaCalendar() {
 
 // ─── Shift modal ─────────────────────────────────────────────────────────────
 
-function ShiftModal({ modal, clients, carers, shifts, carerColourMap, onAdd, onUpdate, onDelete, onClose, year, month }) {
+function ShiftModal({ modal, clients, carers, activeCarers, shifts, carerColourMap, onAdd, onUpdate, onDelete, onClose, year, month }) {
   const client = clients.find(c => c.id === modal.clientId)
   const [carerId, setCarerId] = useState('')
   const [shiftType, setShiftType] = useState('full_day')
@@ -521,8 +527,8 @@ function ShiftModal({ modal, clients, carers, shifts, carerColourMap, onAdd, onU
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
               {shifts.length > 0 ? 'Add Another Shift' : 'Assign a Carer'}
             </h4>
-            {carers.length === 0 ? (
-              <p className="text-sm text-gray-500">Add carers first before creating shifts.</p>
+            {activeCarers.length === 0 ? (
+              <p className="text-sm text-gray-500">Add active carers first before creating shifts.</p>
             ) : (
               <form onSubmit={handleAdd} className="space-y-3">
                 <div>
@@ -534,14 +540,11 @@ function ShiftModal({ modal, clients, carers, shifts, carerColourMap, onAdd, onU
                     required
                   >
                     <option value="">Select carer...</option>
-                    {carers.map((c, idx) => {
-                      const colour = getCarerColour(idx)
-                      return (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.role})
-                        </option>
-                      )
-                    })}
+                    {activeCarers.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.role})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>

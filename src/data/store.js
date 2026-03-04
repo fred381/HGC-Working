@@ -37,6 +37,7 @@ function buildSampleData() {
       role: 'Senior Carer',
       contactNumber: '07421 334 512',
       hourlyRate: 14.50,
+      active: true,
     },
     {
       id: uuidv4(),
@@ -45,6 +46,7 @@ function buildSampleData() {
       role: 'Carer',
       contactNumber: '07553 221 087',
       hourlyRate: 12.00,
+      active: true,
     },
     {
       id: uuidv4(),
@@ -53,6 +55,7 @@ function buildSampleData() {
       role: 'Team Leader',
       contactNumber: '07700 910 345',
       hourlyRate: 16.00,
+      active: true,
     },
     {
       id: uuidv4(),
@@ -61,6 +64,7 @@ function buildSampleData() {
       role: 'Carer',
       contactNumber: '07812 456 223',
       hourlyRate: 12.00,
+      active: true,
     },
     {
       id: uuidv4(),
@@ -69,6 +73,7 @@ function buildSampleData() {
       role: 'Senior Carer',
       contactNumber: '07934 678 112',
       hourlyRate: 14.50,
+      active: true,
     },
   ]
 
@@ -79,6 +84,7 @@ function buildSampleData() {
       name: 'Margaret Thompson',
       careNeeds: 'Dementia support, medication management, mobility assistance',
       address: '14 Rosewood Lane, Bromley, BR1 3PQ',
+      active: true,
     },
     {
       id: uuidv4(),
@@ -86,6 +92,7 @@ function buildSampleData() {
       name: 'Arthur Patel',
       careNeeds: 'Post-stroke rehabilitation, daily living support, physiotherapy exercises',
       address: '7 Elm Court, Croydon, CR0 6TH',
+      active: true,
     },
     {
       id: uuidv4(),
@@ -93,6 +100,7 @@ function buildSampleData() {
       name: 'Doris Campbell',
       careNeeds: 'Palliative care, pain management, companionship',
       address: '22 Victoria Road, Lewisham, SE13 5NR',
+      active: true,
     },
     {
       id: uuidv4(),
@@ -100,6 +108,7 @@ function buildSampleData() {
       name: 'Harold Jenkins',
       careNeeds: 'Diabetes management, meal preparation, personal hygiene assistance',
       address: '9 Birch Close, Greenwich, SE10 8AG',
+      active: true,
     },
   ]
 
@@ -196,6 +205,7 @@ export function createCarer(carers, data) {
     role: data.role || 'Carer',
     contactNumber: data.contactNumber || '',
     hourlyRate: parseFloat(data.hourlyRate) || 0,
+    active: true,
   }
   const updated = [...carers, carer]
   save(STORAGE_KEYS.CARERS, updated)
@@ -212,6 +222,7 @@ export function updateCarer(carers, id, data) {
           role: data.role ?? c.role,
           contactNumber: data.contactNumber ?? c.contactNumber,
           hourlyRate: data.hourlyRate !== undefined ? parseFloat(data.hourlyRate) || 0 : c.hourlyRate,
+          active: data.active !== undefined ? data.active : (c.active ?? true),
         }
       : c
   )
@@ -236,6 +247,7 @@ export function createClient(clients, data) {
     name: data.name,
     careNeeds: data.careNeeds || '',
     address: data.address || '',
+    active: true,
   }
   const updated = [...clients, client]
   save(STORAGE_KEYS.CLIENTS, updated)
@@ -251,6 +263,7 @@ export function updateClient(clients, id, data) {
           name: data.name ?? c.name,
           careNeeds: data.careNeeds ?? c.careNeeds,
           address: data.address ?? c.address,
+          active: data.active !== undefined ? data.active : (c.active ?? true),
         }
       : c
   )
