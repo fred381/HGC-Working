@@ -35,7 +35,7 @@ const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export default function RotaCalendar() {
-  const { clients: allClients, carers: allCarers, shifts, addShift, updateShift, deleteShift, getCarerStats } = useApp()
+  const { clients: allClients, carers: allCarers, shifts, addShift, addShiftsBatch, updateShift, deleteShift, getCarerStats } = useApp()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [modal, setModal] = useState(null)
 
@@ -388,8 +388,10 @@ export default function RotaCalendar() {
           carers={carers}
           activeCarers={activeCarers}
           shifts={shiftGrid[`${modal.clientId}|${modal.date}`] || []}
+          allShifts={shifts}
           carerColourMap={carerColourMap}
           onAdd={addShift}
+          onAddBatch={addShiftsBatch}
           onUpdate={updateShift}
           onDelete={deleteShift}
           onClose={() => setModal(null)}
@@ -401,16 +403,41 @@ export default function RotaCalendar() {
   )
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function generateDateRange(startStr, endStr) {
+  const dates = []
+  const start = new Date(startStr + 'T00:00:00')
+  const end = new Date(endStr + 'T00:00:00')
+  const cur = new Date(start)
+  while (cur <= end) {
+    const y = cur.getFullYear()
+    const m = String(cur.getMonth() + 1).padStart(2, '0')
+    const d = String(cur.getDate()).padStart(2, '0')
+    dates.push(`${y}-${m}-${d}`)
+    cur.setDate(cur.getDate() + 1)
+  }
+  return dates
+}
+
 // ─── Shift modal ─────────────────────────────────────────────────────────────
 
-function ShiftModal({ modal, clients, carers, activeCarers, shifts, carerColourMap, onAdd, onUpdate, onDelete, onClose, year, month }) {
+function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, carerColourMap, onAdd, onAddBatch, onUpdate, onDelete, onClose, year, month }) {
   const client = clients.find(c => c.id === modal.clientId)
   const [carerId, setCarerId] = useState('')
   const [shiftType, setShiftType] = useState('full_day')
   const [notes, setNotes] = useState('')
+  const [startDate, setStartDate] = useState(modal.date)
+  const [endDate, setEndDate] = useState(modal.date)
+  const [lastResult, setLastResult] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editShiftType, setEditShiftType] = useState('')
   const [editNotes, setEditNotes] = useState('')
+
+  const isMultiDay = startDate !== endDate && endDate > startDate
+  const dayCount = isMultiDay
+    ? Math.round((new Date(endDate + 'T00:00:00') - new Date(startDate + 'T00:00:00')) / 86400000) + 1
+    : 1
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
@@ -421,15 +448,41 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, carerColourM
   function handleAdd(e) {
     e.preventDefault()
     if (!carerId) return
-    const duplicate = shifts.some(s => s.carerId === carerId && s.shiftType === shiftType)
-    if (duplicate) {
-      alert('This carer already has this shift type assigned for this client on this day.')
-      return
+
+    if (isMultiDay) {
+      const dates = generateDateRange(startDate, endDate)
+      const clientId = modal.clientId
+      const newShifts = dates.filter(date => {
+        return !allShifts.some(
+          s => s.carerId === carerId && s.clientId === clientId && s.date === date && s.shiftType === shiftType
+        )
+      }).map(date => ({ carerId, clientId, date, shiftType, notes }))
+
+      if (newShifts.length === 0) {
+        alert('This carer already has this shift type assigned for this client on all selected days.')
+        return
+      }
+
+      onAddBatch(newShifts)
+      const skipped = dates.length - newShifts.length
+      setLastResult({ created: newShifts.length, skipped, total: dates.length })
+      setCarerId('')
+      setShiftType('full_day')
+      setNotes('')
+      setStartDate(modal.date)
+      setEndDate(modal.date)
+    } else {
+      const duplicate = shifts.some(s => s.carerId === carerId && s.shiftType === shiftType)
+      if (duplicate) {
+        alert('This carer already has this shift type assigned for this client on this day.')
+        return
+      }
+      onAdd({ carerId, clientId: modal.clientId, date: startDate, shiftType, notes })
+      setLastResult(null)
+      setCarerId('')
+      setShiftType('full_day')
+      setNotes('')
     }
-    onAdd({ carerId, clientId: modal.clientId, date: modal.date, shiftType, notes })
-    setCarerId('')
-    setShiftType('full_day')
-    setNotes('')
   }
 
   function startEdit(shift) {
@@ -471,7 +524,7 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, carerColourM
         </div>
 
         <div className="px-5 py-4 space-y-5">
-          {/* Existing shifts */}
+          {/* Existing shifts for this day */}
           {shifts.length > 0 && (
             <div>
               <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
@@ -606,6 +659,41 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, carerColourM
                     ))}
                   </select>
                 </div>
+
+                {/* Date range for multi-day scheduling */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={e => {
+                        setStartDate(e.target.value)
+                        if (e.target.value > endDate) setEndDate(e.target.value)
+                        setLastResult(null)
+                      }}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      min={startDate}
+                      onChange={e => { setEndDate(e.target.value); setLastResult(null) }}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                      required
+                    />
+                  </div>
+                </div>
+                {isMultiDay && (
+                  <p className="text-xs text-hgc-600 font-medium">
+                    {dayCount} days selected — a {SHIFT_TYPES[shiftType]?.label || shiftType} shift will be created for each day.
+                  </p>
+                )}
+
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                   <input
@@ -620,9 +708,19 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, carerColourM
                   type="submit"
                   className="w-full flex items-center justify-center gap-2 bg-hgc-600 text-white px-4 py-2.5 rounded-lg hover:bg-hgc-700 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow"
                 >
-                  <Plus size={16} /> Assign Carer
+                  <Plus size={16} />
+                  {isMultiDay ? `Assign for ${dayCount} Days` : 'Assign Carer'}
                 </button>
               </form>
+            )}
+
+            {lastResult && (
+              <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800">
+                Created {lastResult.created} shift{lastResult.created !== 1 ? 's' : ''}.
+                {lastResult.skipped > 0 && (
+                  <span className="text-amber-700"> {lastResult.skipped} day{lastResult.skipped !== 1 ? 's' : ''} skipped (already assigned).</span>
+                )}
+              </div>
             )}
           </div>
         </div>

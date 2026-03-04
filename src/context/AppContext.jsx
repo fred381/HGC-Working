@@ -8,6 +8,7 @@ import {
   updateClient as storUpdateClient,
   deleteClient as storDeleteClient,
   createShift,
+  createShiftsBatch,
   updateShift as storUpdateShift,
   deleteShift as storDeleteShift,
   getShiftsForDate,
@@ -76,6 +77,13 @@ export function AppProvider({ children }) {
     })
   }, [])
 
+  const addShiftsBatch = useCallback((dataArray) => {
+    setState(prev => {
+      const { updated } = createShiftsBatch(prev.shifts, dataArray)
+      return { ...prev, shifts: updated }
+    })
+  }, [])
+
   const updateShift = useCallback((id, data) => {
     setState(prev => ({
       ...prev,
@@ -124,6 +132,7 @@ export function AppProvider({ children }) {
     updateClient,
     deleteClient,
     addShift,
+    addShiftsBatch,
     updateShift,
     deleteShift,
     getShiftsOnDate,

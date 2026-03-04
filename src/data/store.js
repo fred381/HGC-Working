@@ -295,6 +295,20 @@ export function createShift(shifts, data) {
   return { updated, shift }
 }
 
+export function createShiftsBatch(shifts, dataArray) {
+  const newShifts = dataArray.map(data => ({
+    id: uuidv4(),
+    carerId: data.carerId,
+    clientId: data.clientId,
+    date: data.date,
+    shiftType: data.shiftType || 'full_day',
+    notes: data.notes || '',
+  }))
+  const updated = [...shifts, ...newShifts]
+  save(STORAGE_KEYS.SHIFTS, updated)
+  return { updated, newShifts }
+}
+
 export function updateShift(shifts, id, data) {
   const updated = shifts.map(s =>
     s.id === id ? { ...s, ...data } : s
