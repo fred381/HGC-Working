@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
-import { Calendar, Users, UserCheck, Receipt } from 'lucide-react'
+import { Calendar, Users, UserCheck, Receipt, LogOut } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const navItems = [
   { to: '/rota', label: 'Rota', icon: Calendar },
@@ -9,6 +10,8 @@ const navItems = [
 ]
 
 export default function Layout({ children }) {
+  const { signOut } = useAuth()
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
@@ -50,8 +53,15 @@ export default function Layout({ children }) {
               ))}
             </nav>
 
-            {/* Right side placeholder for mobile */}
-            <div className="w-9 md:hidden" />
+            {/* Logout */}
+            <button
+              onClick={signOut}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-hgc-200 hover:text-white hover:bg-white/10 transition-all duration-200"
+              title="Sign out"
+            >
+              <LogOut size={16} />
+              <span className="hidden md:inline">Sign out</span>
+            </button>
           </div>
         </div>
       </header>
