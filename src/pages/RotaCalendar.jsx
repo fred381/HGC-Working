@@ -32,10 +32,15 @@ const SHIFT_ABBR = {
 
 const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+const TAG_STYLES = {
+  handover:         { bg: '#FEF9C3', text: '#854D0E', border: '#FDE047', label: 'Handover',         abbr: 'HO' },
+  no_care_required: { bg: '#F3F4F6', text: '#374151', border: '#D1D5DB', label: 'No Care Required', abbr: 'NCR' },
+}
+
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export default function RotaCalendar() {
-  const { clients: allClients, carers: allCarers, shifts, addShift, addShiftsBatch, updateShift, deleteShift, getCarerStats } = useApp()
+  const { clients: allClients, carers: allCarers, shifts, tags, addShift, addShiftsBatch, updateShift, deleteShift, addTag, updateTag, deleteTag, getCarerStats } = useApp()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [modal, setModal] = useState(null)
   const [filterClientId, setFilterClientId] = useState('')
@@ -69,6 +74,21 @@ export default function RotaCalendar() {
     }
     return grid
   }, [monthShifts])
+
+  const monthTags = useMemo(() => {
+    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
+    return tags.filter(t => t.date.startsWith(prefix))
+  }, [tags, year, month])
+
+  const tagGrid = useMemo(() => {
+    const grid = {}
+    for (const t of monthTags) {
+      const key = `${t.clientId}|${t.date}`
+      if (!grid[key]) grid[key] = []
+      grid[key].push(t)
+    }
+    return grid
+  }, [monthTags])
 
   const days = useMemo(() => {
     const result = []
@@ -236,6 +256,15 @@ export default function RotaCalendar() {
               </span>
             ))}
           </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 pt-2 border-t border-gray-100">
+            {Object.entries(TAG_STYLES).map(([key, style]) => (
+              <span key={key} className="inline-flex items-center gap-1.5 text-[11px]">
+                <span className="inline-block w-3 h-3 rounded border" style={{ backgroundColor: style.bg, borderColor: style.border }} />
+                <span className="font-semibold text-gray-500">{style.abbr}</span>
+                <span className="text-gray-400">= {style.label}</span>
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
@@ -339,7 +368,8 @@ export default function RotaCalendar() {
                       const cellShifts = filterCarerId
                         ? allCellShifts.filter(s => s.carerId === filterCarerId)
                         : allCellShifts
-                      const hasShifts = cellShifts.length > 0
+                      const cellTags = tagGrid[key] || []
+                      const hasContent = cellShifts.length > 0 || cellTags.length > 0
 
                       return (
                         <td
@@ -353,8 +383,21 @@ export default function RotaCalendar() {
                                 : 'bg-white hover:bg-gray-50/60'
                           }`}
                         >
-                          {hasShifts ? (
+                          {hasContent ? (
                             <div className="space-y-0.5 p-0.5">
+                              {cellTags.map(t => {
+                                const style = TAG_STYLES[t.tagType] || TAG_STYLES.handover
+                                return (
+                                  <div
+                                    key={t.id}
+                                    className="rounded px-1 py-0.5 text-[11px] font-medium leading-tight truncate border"
+                                    style={{ backgroundColor: style.bg, color: style.text, borderColor: style.border }}
+                                    title={`${style.label}${t.notes ? ` — ${t.notes}` : ''}`}
+                                  >
+                                    {style.abbr} {t.notes && <span className="opacity-60 font-normal">· {t.notes}</span>}
+                                  </div>
+                                )
+                              })}
                               {cellShifts.map(s => {
                                 const colourIdx = carerColourMap[s.carerId] ?? 0
                                 const colour = getCarerColour(colourIdx)
@@ -440,10 +483,14 @@ export default function RotaCalendar() {
           shifts={shiftGrid[`${modal.clientId}|${modal.date}`] || []}
           allShifts={shifts}
           carerColourMap={carerColourMap}
+          tags={tagGrid[`${modal.clientId}|${modal.date}`] || []}
           onAdd={addShift}
           onAddBatch={addShiftsBatch}
           onUpdate={updateShift}
           onDelete={deleteShift}
+          onAddTag={addTag}
+          onUpdateTag={updateTag}
+          onDeleteTag={deleteTag}
           onClose={() => setModal(null)}
           year={year}
           month={month}
@@ -472,8 +519,9 @@ function generateDateRange(startStr, endStr) {
 
 // ─── Shift modal ─────────────────────────────────────────────────────────────
 
-function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, carerColourMap, onAdd, onAddBatch, onUpdate, onDelete, onClose, year, month }) {
+function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, carerColourMap, tags, onAdd, onAddBatch, onUpdate, onDelete, onAddTag, onUpdateTag, onDeleteTag, onClose, year, month }) {
   const client = clients.find(c => c.id === modal.clientId)
+  const [mode, setMode] = useState('carer') // 'carer' | 'tag'
   const [carerId, setCarerId] = useState('')
   const [shiftType, setShiftType] = useState('full_day')
   const [notes, setNotes] = useState('')
@@ -483,6 +531,13 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, c
   const [editingId, setEditingId] = useState(null)
   const [editShiftType, setEditShiftType] = useState('')
   const [editNotes, setEditNotes] = useState('')
+
+  // Tag form state
+  const [tagType, setTagType] = useState('handover')
+  const [tagNotes, setTagNotes] = useState('')
+  const [editingTagId, setEditingTagId] = useState(null)
+  const [editTagType, setEditTagType] = useState('')
+  const [editTagNotes, setEditTagNotes] = useState('')
 
   const isMultiDay = startDate !== endDate && endDate > startDate
   const dayCount = isMultiDay
@@ -535,6 +590,18 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, c
     }
   }
 
+  function handleAddTag(e) {
+    e.preventDefault()
+    const duplicate = tags.some(t => t.tagType === tagType)
+    if (duplicate) {
+      alert(`A "${TAG_STYLES[tagType].label}" tag already exists for this cell. Edit the existing one instead.`)
+      return
+    }
+    onAddTag({ clientId: modal.clientId, date: modal.date, tagType, notes: tagNotes })
+    setTagType('handover')
+    setTagNotes('')
+  }
+
   function startEdit(shift) {
     setEditingId(shift.id)
     setEditShiftType(shift.shiftType)
@@ -548,6 +615,20 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, c
   }
 
   function cancelEdit() { setEditingId(null) }
+
+  function startEditTag(tag) {
+    setEditingTagId(tag.id)
+    setEditTagType(tag.tagType)
+    setEditTagNotes(tag.notes || '')
+  }
+
+  function saveEditTag() {
+    if (!editingTagId) return
+    onUpdateTag(editingTagId, { tagType: editTagType, notes: editTagNotes })
+    setEditingTagId(null)
+  }
+
+  function cancelEditTag() { setEditingTagId(null) }
 
   const displayDate = new Date(year, month, modal.day)
   const dateLabel = displayDate.toLocaleDateString('en-GB', {
@@ -574,6 +655,91 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, c
         </div>
 
         <div className="px-5 py-4 space-y-5">
+          {/* Existing tags for this day */}
+          {tags.length > 0 && (
+            <div>
+              <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                Tags ({tags.length})
+              </h4>
+              <div className="space-y-2">
+                {tags.map(t => {
+                  const style = TAG_STYLES[t.tagType] || TAG_STYLES.handover
+                  const isEditing = editingTagId === t.id
+
+                  if (isEditing) {
+                    return (
+                      <div key={t.id} className="border rounded-xl p-3 space-y-2" style={{ borderColor: style.border, backgroundColor: style.bg + '40' }}>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Tag Type</label>
+                          <select
+                            value={editTagType}
+                            onChange={e => setEditTagType(e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                          >
+                            {Object.entries(TAG_STYLES).map(([key, s]) => (
+                              <option key={key} value={key}>{s.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                          <input
+                            type="text"
+                            value={editTagNotes}
+                            onChange={e => setEditTagNotes(e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                            placeholder="Optional notes"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={saveEditTag} className="text-sm bg-hgc-600 text-white px-3 py-1.5 rounded-lg hover:bg-hgc-700 transition-all duration-200 font-medium shadow-sm">
+                            Save
+                          </button>
+                          <button onClick={cancelEditTag} className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-all duration-200">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between rounded-xl px-3 py-2.5 border transition-all duration-200 hover:shadow-sm"
+                      style={{ backgroundColor: style.bg, borderColor: style.border }}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium" style={{ color: style.text }}>
+                          {style.label}
+                        </p>
+                        {t.notes && (
+                          <p className="text-xs text-gray-500 mt-0.5 truncate">{t.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                        <button
+                          onClick={() => startEditTag(t)}
+                          className="text-gray-400 hover:text-hgc-600 transition-colors duration-200 p-1"
+                          title="Edit tag"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        </button>
+                        <button
+                          onClick={() => onDeleteTag(t.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors duration-200 p-1"
+                          title="Remove tag"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Existing shifts for this day */}
           {shifts.length > 0 && (
             <div>
@@ -672,105 +838,164 @@ function ShiftModal({ modal, clients, carers, activeCarers, shifts, allShifts, c
             </div>
           )}
 
-          {/* Add new shift */}
+          {/* Mode chooser tabs */}
           <div>
-            <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              {shifts.length > 0 ? 'Add Another Shift' : 'Assign a Carer'}
-            </h4>
-            {activeCarers.length === 0 ? (
-              <p className="text-sm text-gray-500">Add active carers on the Carers page before creating shifts.</p>
-            ) : (
-              <form onSubmit={handleAdd} className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Carer</label>
-                  <select
-                    value={carerId}
-                    onChange={e => setCarerId(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
-                    required
-                  >
-                    <option value="">Select carer...</option>
-                    {activeCarers.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Shift Type</label>
-                  <select
-                    value={shiftType}
-                    onChange={e => setShiftType(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
-                  >
-                    {Object.entries(SHIFT_TYPES).map(([key, { label, hours }]) => (
-                      <option key={key} value={key}>{label} ({hours}h)</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="flex rounded-lg bg-gray-100 p-0.5 mb-3">
+              <button
+                type="button"
+                onClick={() => setMode('carer')}
+                className={`flex-1 text-sm font-medium py-2 rounded-md transition-all duration-200 ${
+                  mode === 'carer'
+                    ? 'bg-white text-hgc-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Assign Carer
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('tag')}
+                className={`flex-1 text-sm font-medium py-2 rounded-md transition-all duration-200 ${
+                  mode === 'tag'
+                    ? 'bg-white text-hgc-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Add Tag
+              </button>
+            </div>
 
-                {/* Date range for multi-day scheduling */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={e => {
-                        setStartDate(e.target.value)
-                        if (e.target.value > endDate) setEndDate(e.target.value)
-                        setLastResult(null)
-                      }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      min={startDate}
-                      onChange={e => { setEndDate(e.target.value); setLastResult(null) }}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
-                      required
-                    />
-                  </div>
-                </div>
-                {isMultiDay && (
-                  <p className="text-xs text-hgc-600 font-medium">
-                    {dayCount} days selected — a {SHIFT_TYPES[shiftType]?.label || shiftType} shift will be created for each day.
-                  </p>
+            {mode === 'carer' ? (
+              <>
+                {activeCarers.length === 0 ? (
+                  <p className="text-sm text-gray-500">Add active carers on the Carers page before creating shifts.</p>
+                ) : (
+                  <form onSubmit={handleAdd} className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Carer</label>
+                      <select
+                        value={carerId}
+                        onChange={e => setCarerId(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                        required
+                      >
+                        <option value="">Select carer...</option>
+                        {activeCarers.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.role})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Shift Type</label>
+                      <select
+                        value={shiftType}
+                        onChange={e => setShiftType(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                      >
+                        {Object.entries(SHIFT_TYPES).map(([key, { label, hours }]) => (
+                          <option key={key} value={key}>{label} ({hours}h)</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Date range for multi-day scheduling */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={e => {
+                            setStartDate(e.target.value)
+                            if (e.target.value > endDate) setEndDate(e.target.value)
+                            setLastResult(null)
+                          }}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          min={startDate}
+                          onChange={e => { setEndDate(e.target.value); setLastResult(null) }}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                          required
+                        />
+                      </div>
+                    </div>
+                    {isMultiDay && (
+                      <p className="text-xs text-hgc-600 font-medium">
+                        {dayCount} days selected — a {SHIFT_TYPES[shiftType]?.label || shiftType} shift will be created for each day.
+                      </p>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
+                      <input
+                        type="text"
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                        placeholder="Optional notes"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full flex items-center justify-center gap-2 bg-hgc-600 text-white px-4 py-2.5 rounded-lg hover:bg-hgc-700 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow"
+                    >
+                      <Plus size={16} />
+                      {isMultiDay ? `Assign for ${dayCount} Days` : 'Assign Carer'}
+                    </button>
+                  </form>
                 )}
 
+                {lastResult && (
+                  <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800">
+                    Created {lastResult.created} shift{lastResult.created !== 1 ? 's' : ''}.
+                    {lastResult.skipped > 0 && (
+                      <span className="text-amber-700"> {lastResult.skipped} day{lastResult.skipped !== 1 ? 's' : ''} skipped (already assigned).</span>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <form onSubmit={handleAddTag} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tag Type</label>
+                  <select
+                    value={tagType}
+                    onChange={e => setTagType(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
+                  >
+                    {Object.entries(TAG_STYLES).map(([key, s]) => (
+                      <option key={key} value={key}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
                   <input
                     type="text"
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
+                    value={tagNotes}
+                    onChange={e => setTagNotes(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200"
-                    placeholder="Optional notes"
+                    placeholder={tagType === 'handover' ? 'e.g. Handover instructions...' : 'e.g. Reason no care is required...'}
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center gap-2 bg-hgc-600 text-white px-4 py-2.5 rounded-lg hover:bg-hgc-700 transition-all duration-200 text-sm font-medium shadow-sm hover:shadow"
+                  className="w-full flex items-center justify-center gap-2 text-white px-4 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium shadow-sm hover:shadow"
+                  style={{ backgroundColor: TAG_STYLES[tagType]?.text || '#374151' }}
                 >
                   <Plus size={16} />
-                  {isMultiDay ? `Assign for ${dayCount} Days` : 'Assign Carer'}
+                  Add {TAG_STYLES[tagType]?.label || 'Tag'}
                 </button>
               </form>
-            )}
-
-            {lastResult && (
-              <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800">
-                Created {lastResult.created} shift{lastResult.created !== 1 ? 's' : ''}.
-                {lastResult.skipped > 0 && (
-                  <span className="text-amber-700"> {lastResult.skipped} day{lastResult.skipped !== 1 ? 's' : ''} skipped (already assigned).</span>
-                )}
-              </div>
             )}
           </div>
         </div>

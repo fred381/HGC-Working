@@ -40,29 +40,72 @@ function shiftFromRow(r) {
   }
 }
 
+function tagFromRow(r) {
+  return {
+    id: r.id,
+    clientId: r.client_id,
+    date: r.date,
+    tagType: r.tag_type,
+    notes: r.notes || '',
+  }
+}
+
 // ── Provider ────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }) {
   const [carers, setCarers] = useState([])
   const [clients, setClients] = useState([])
   const [shifts, setShifts] = useState([])
+  const [tags, setTags] = useState([])
   const [loading, setLoading] = useState(true)
 
   // ── Initial load ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     async function loadAll() {
-      const [carersRes, clientsRes, shiftsRes] = await Promise.all([
+      const [carersRes, clientsRes, shiftsRes, tagsRes] = await Promise.all([
         supabase.from('carers').select('*').order('created_at'),
         supabase.from('clients').select('*').order('created_at'),
         supabase.from('shifts').select('*').order('created_at'),
+        supabase.from('tags').select('*').order('created_at'),
       ])
       if (carersRes.data) setCarers(carersRes.data.map(carerFromRow))
       if (clientsRes.data) setClients(clientsRes.data.map(clientFromRow))
       if (shiftsRes.data) setShifts(shiftsRes.data.map(shiftFromRow))
+      if (tagsRes.data) setTags(tagsRes.data.map(tagFromRow))
       setLoading(false)
     }
     loadAll()
+
+    // ── Real-time subscriptions ───────────────────────────────────────────
+    const channel = supabase.channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setTags(prev => {
+            if (prev.some(t => t.id === payload.new.id)) return prev
+            return [...prev, tagFromRow(payload.new)]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setTags(prev => prev.map(t => t.id === payload.new.id ? tagFromRow(payload.new) : t))
+        } else if (payload.eventType === 'DELETE') {
+          setTags(prev => prev.filter(t => t.id !== payload.old.id))
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shifts' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setShifts(prev => {
+            if (prev.some(s => s.id === payload.new.id)) return prev
+            return [...prev, shiftFromRow(payload.new)]
+          })
+        } else if (payload.eventType === 'UPDATE') {
+          setShifts(prev => prev.map(s => s.id === payload.new.id ? shiftFromRow(payload.new) : s))
+        } else if (payload.eventType === 'DELETE') {
+          setShifts(prev => prev.filter(s => s.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   // ── Carer operations ─────────────────────────────────────────────────────
@@ -208,6 +251,35 @@ export function AppProvider({ children }) {
     setShifts(prev => prev.filter(s => s.id !== id))
   }, [])
 
+  // ── Tag operations ──────────────────────────────────────────────────────
+
+  const addTag = useCallback(async (data) => {
+    const row = {
+      client_id: data.clientId,
+      date: data.date,
+      tag_type: data.tagType,
+      notes: data.notes || '',
+    }
+    const { data: rows, error } = await supabase.from('tags').insert(row).select()
+    if (error) { console.error('addTag', error); return }
+    setTags(prev => [...prev, tagFromRow(rows[0])])
+  }, [])
+
+  const updateTag = useCallback(async (id, data) => {
+    const updates = {}
+    if (data.tagType !== undefined) updates.tag_type = data.tagType
+    if (data.notes !== undefined) updates.notes = data.notes
+    const { error } = await supabase.from('tags').update(updates).eq('id', id)
+    if (error) { console.error('updateTag', error); return }
+    setTags(prev => prev.map(t => t.id === id ? { ...t, ...data } : t))
+  }, [])
+
+  const deleteTag = useCallback(async (id) => {
+    const { error } = await supabase.from('tags').delete().eq('id', id)
+    if (error) { console.error('deleteTag', error); return }
+    setTags(prev => prev.filter(t => t.id !== id))
+  }, [])
+
   // ── Query helpers (computed from local state, same as before) ────────────
 
   const getShiftsOnDate = useCallback(
@@ -244,6 +316,7 @@ export function AppProvider({ children }) {
     carers,
     clients,
     shifts,
+    tags,
     loading,
     addCarer,
     updateCarer,
@@ -255,6 +328,9 @@ export function AppProvider({ children }) {
     addShiftsBatch,
     updateShift,
     deleteShift,
+    addTag,
+    updateTag,
+    deleteTag,
     getShiftsOnDate,
     getMonthShifts,
     getCarerStats,

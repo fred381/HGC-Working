@@ -42,13 +42,33 @@ create index shifts_carer_id_idx  on shifts(carer_id);
 create index shifts_client_id_idx on shifts(client_id);
 create index shifts_date_idx      on shifts(date);
 
+-- Tags table (handover, no care required, etc.)
+create table tags (
+  id          uuid primary key default gen_random_uuid(),
+  client_id   uuid not null references clients(id) on delete cascade,
+  date        date not null,
+  tag_type    text not null check (tag_type in ('handover', 'no_care_required')),
+  notes       text not null default '',
+  created_at  timestamptz not null default now()
+);
+
+create index tags_client_id_idx on tags(client_id);
+create index tags_date_idx      on tags(date);
+create unique index tags_client_date_type_idx on tags(client_id, date, tag_type);
+
 -- Enable Row Level Security (required by Supabase, open for now)
 alter table carers  enable row level security;
 alter table clients enable row level security;
 alter table shifts  enable row level security;
+alter table tags    enable row level security;
 
 -- Allow all operations for authenticated and anonymous users
 -- (tighten these once you add auth)
 create policy "Allow all on carers"  on carers  for all using (true) with check (true);
 create policy "Allow all on clients" on clients for all using (true) with check (true);
 create policy "Allow all on shifts"  on shifts  for all using (true) with check (true);
+create policy "Allow all on tags"    on tags    for all using (true) with check (true);
+
+-- Enable realtime for tags and shifts
+alter publication supabase_realtime add table tags;
+alter publication supabase_realtime add table shifts;
