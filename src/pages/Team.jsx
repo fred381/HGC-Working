@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../context/AuthContext'
 import { UserPlus, Shield, ShieldOff, UserX, UserCheck, Mail, X } from 'lucide-react'
 
 export default function Team() {
-  const { isAdmin } = useAuth()
+  const isAdmin = true // Auth bypassed for demo
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)

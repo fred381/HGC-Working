@@ -1,20 +1,16 @@
 import { NavLink } from 'react-router-dom'
-import { Calendar, Users, UserCheck, Receipt, LogOut, ShieldCheck } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { Calendar, Users, UserCheck, Receipt, ShieldCheck } from 'lucide-react'
 
 const navItems = [
   { to: '/rota', label: 'Rota', icon: Calendar },
   { to: '/carers', label: 'Carers', icon: UserCheck },
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/payroll', label: 'Payroll', icon: Receipt },
+  { to: '/team', label: 'Team', icon: ShieldCheck },
 ]
 
 export default function Layout({ children }) {
-  const { signOut, isAdmin } = useAuth()
-
-  const allNavItems = isAdmin
-    ? [...navItems, { to: '/team', label: 'Team', icon: ShieldCheck }]
-    : navItems
+  const allNavItems = navItems
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
@@ -57,15 +53,8 @@ export default function Layout({ children }) {
               ))}
             </nav>
 
-            {/* Logout */}
-            <button
-              onClick={signOut}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-hgc-200 hover:text-white hover:bg-white/10 transition-all duration-200"
-              title="Sign out"
-            >
-              <LogOut size={16} />
-              <span className="hidden md:inline">Sign out</span>
-            </button>
+            {/* Spacer (sign-out hidden for demo) */}
+            <div />
           </div>
         </div>
       </header>
