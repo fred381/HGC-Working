@@ -10,19 +10,23 @@ const navItems = [
 
 export default function Layout({ children }) {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
       {/* ── Top bar ────────────────────────────────────────────────────────── */}
-      <header className="bg-hgc-800 shadow-lg">
+      <header className="bg-hgc-800 border-b border-hgc-900/30">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center justify-between h-16">
             {/* Logo / brand */}
-            <NavLink to="/" className="flex items-center gap-2.5 group">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm group-hover:shadow transition-shadow">
-                <span className="text-hgc-800 font-bold text-sm">HGC</span>
+            <NavLink to="/" className="flex items-center gap-3 group">
+              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow duration-200">
+                <span className="text-hgc-800 font-bold text-sm tracking-tight">HGC</span>
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-white text-sm font-semibold leading-tight">Hamilton George Care</h1>
-                <p className="text-hgc-300 text-[11px] leading-tight">Rota Management</p>
+                <h1 className="text-white text-[15px] font-semibold leading-tight tracking-tight">
+                  Hamilton George Care
+                </h1>
+                <p className="text-hgc-300 text-[11px] leading-tight font-medium tracking-wide uppercase">
+                  Rota Manager
+                </p>
               </div>
             </NavLink>
 
@@ -33,35 +37,35 @@ export default function Layout({ children }) {
                   key={to}
                   to={to}
                   className={({ isActive }) =>
-                    `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
-                        ? 'bg-white/15 text-white shadow-sm'
+                        ? 'bg-hgc-600 text-white shadow-sm shadow-hgc-900/30'
                         : 'text-hgc-200 hover:text-white hover:bg-white/10'
                     }`
                   }
                 >
-                  <Icon size={16} />
+                  <Icon size={16} strokeWidth={isActive => isActive ? 2.5 : 2} />
                   {label}
                 </NavLink>
               ))}
             </nav>
 
-            {/* Right side placeholder */}
-            <div className="w-8 md:hidden" />
+            {/* Right side placeholder for mobile */}
+            <div className="w-9 md:hidden" />
           </div>
         </div>
       </header>
 
       {/* ── Mobile bottom navigation ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-lg">
-        <div className="flex justify-around py-1.5">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
+        <div className="flex justify-around py-1.5 px-2">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
-                  isActive ? 'text-hgc-600' : 'text-gray-400'
+                `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 ${
+                  isActive ? 'text-hgc-600' : 'text-gray-400 active:text-gray-600'
                 }`
               }
             >
@@ -74,7 +78,7 @@ export default function Layout({ children }) {
 
       {/* ── Main content ── */}
       <main className="flex-1 pb-20 md:pb-0">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
           {children}
         </div>
       </main>
