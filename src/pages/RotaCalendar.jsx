@@ -45,6 +45,8 @@ export default function RotaCalendar() {
   const [modal, setModal] = useState(null)
   const [filterClientId, setFilterClientId] = useState('')
   const [filterCarerId, setFilterCarerId] = useState('')
+  const [summaryTab, setSummaryTab] = useState('carers') // 'carers' | 'unconfirmed'
+  const [unconfirmedDate, setUnconfirmedDate] = useState(() => new Date())
 
   const clients = useMemo(() => allClients.filter(c => c.active !== false), [allClients])
   const carers = allCarers
@@ -108,28 +110,19 @@ export default function RotaCalendar() {
     return result
   }, [year, month, daysInMonth])
 
-  // ── Summary stats ──
+  // ── Summary stats (handover-based) ──
   const summaryStats = useMemo(() => {
-    const totalShifts = monthShifts.length
-    const uniqueCarerIds = new Set(monthShifts.map(s => s.carerId))
-    const carersWorking = uniqueCarerIds.size
+    const handoverTags = monthTags.filter(t => t.tagType === 'handover')
+    const handoversThisMonth = handoverTags.length
 
-    // Days with no cover: weekdays where no client has any shift
-    // (only meaningful when there are clients to cover)
-    const daysNoCover = []
-    if (clients.length > 0) {
-      for (const d of days) {
-        if (d.isWeekend) continue
-        const hasAnyShift = clients.some(client => {
-          const key = `${client.id}|${d.dateStr}`
-          return shiftGrid[key] && shiftGrid[key].length > 0
-        })
-        if (!hasAnyShift) daysNoCover.push(d.day)
-      }
-    }
+    const unconfirmedHandovers = handoverTags.filter(t => {
+      const key = `${t.clientId}|${t.date}`
+      return !shiftGrid[key] || shiftGrid[key].length === 0
+    })
+    const unconfirmedCount = unconfirmedHandovers.length
 
-    return { totalShifts, carersWorking, daysNoCover }
-  }, [monthShifts, days, clients, shiftGrid])
+    return { handoversThisMonth, unconfirmedCount }
+  }, [monthTags, shiftGrid])
 
   function prevMonth() { setCurrentDate(new Date(year, month - 1, 1)) }
   function nextMonth() { setCurrentDate(new Date(year, month + 1, 1)) }
@@ -146,6 +139,44 @@ export default function RotaCalendar() {
       ...getCarerStats(c.id, year, month),
     })).sort((a, b) => b.totalHours - a.totalHours)
   }, [carers, carerColourMap, year, month, getCarerStats])
+
+  const unconfirmedYear = unconfirmedDate.getFullYear()
+  const unconfirmedMonth = unconfirmedDate.getMonth()
+
+  const unconfirmedHandoversList = useMemo(() => {
+    const prefix = `${unconfirmedYear}-${String(unconfirmedMonth + 1).padStart(2, '0')}`
+    const handoverTags = tags.filter(t => t.tagType === 'handover' && t.date.startsWith(prefix))
+
+    const monthShiftsForTab = shifts.filter(s => s.date.startsWith(prefix))
+    const shiftGridForTab = {}
+    for (const s of monthShiftsForTab) {
+      const key = `${s.clientId}|${s.date}`
+      if (!shiftGridForTab[key]) shiftGridForTab[key] = []
+      shiftGridForTab[key].push(s)
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    return handoverTags
+      .filter(t => {
+        const key = `${t.clientId}|${t.date}`
+        return !shiftGridForTab[key] || shiftGridForTab[key].length === 0
+      })
+      .map(t => {
+        const client = clients.find(c => c.id === t.clientId)
+        const handoverDate = new Date(t.date + 'T00:00:00')
+        const diffMs = handoverDate - today
+        const diffDays = Math.ceil(diffMs / 86400000)
+        return {
+          id: t.id,
+          clientName: client?.name || 'Unknown',
+          date: t.date,
+          daysUntil: diffDays,
+        }
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+  }, [tags, shifts, clients, unconfirmedYear, unconfirmedMonth])
 
   const scrollRef = useRef(null)
   useEffect(() => {
@@ -186,43 +217,32 @@ export default function RotaCalendar() {
       </div>
 
       {/* ── Summary stats bar ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
         <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
-          <div className="w-10 h-10 rounded-lg bg-hgc-50 flex items-center justify-center flex-shrink-0">
-            <CalendarDays size={20} className="text-hgc-600" />
+          <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center flex-shrink-0">
+            <CalendarDays size={20} className="text-yellow-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-hgc-900 leading-tight">{summaryStats.totalShifts}</p>
-            <p className="text-xs text-gray-500 font-medium">Total Shifts</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex items-center gap-3 shadow-sm">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
-            <Users size={20} className="text-emerald-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-hgc-900 leading-tight">{summaryStats.carersWorking}</p>
-            <p className="text-xs text-gray-500 font-medium">Carers Working</p>
+            <p className="text-2xl font-bold text-hgc-900 leading-tight">{summaryStats.handoversThisMonth}</p>
+            <p className="text-xs text-gray-500 font-medium">Handovers This Month</p>
           </div>
         </div>
         <div className={`bg-white rounded-xl border px-4 py-3 flex items-center gap-3 shadow-sm ${
-          summaryStats.daysNoCover.length > 0 ? 'border-amber-200' : 'border-gray-200'
+          summaryStats.unconfirmedCount > 0 ? 'border-amber-200' : 'border-gray-200'
         }`}>
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-            summaryStats.daysNoCover.length > 0 ? 'bg-amber-50' : 'bg-gray-50'
+            summaryStats.unconfirmedCount > 0 ? 'bg-amber-50' : 'bg-gray-50'
           }`}>
-            <AlertTriangle size={20} className={summaryStats.daysNoCover.length > 0 ? 'text-amber-500' : 'text-gray-400'} />
+            <AlertTriangle size={20} className={summaryStats.unconfirmedCount > 0 ? 'text-amber-500' : 'text-gray-400'} />
           </div>
           <div>
             <p className={`text-2xl font-bold leading-tight ${
-              summaryStats.daysNoCover.length > 0 ? 'text-amber-600' : 'text-hgc-900'
+              summaryStats.unconfirmedCount > 0 ? 'text-amber-600' : 'text-hgc-900'
             }`}>
-              {summaryStats.daysNoCover.length}
+              {summaryStats.unconfirmedCount}
             </p>
             <p className="text-xs text-gray-500 font-medium">
-              {summaryStats.daysNoCover.length === 0
-                ? 'All Weekdays Covered'
-                : `Day${summaryStats.daysNoCover.length !== 1 ? 's' : ''} Without Cover`}
+              Unconfirmed Handovers This Month
             </p>
           </div>
         </div>
@@ -431,14 +451,37 @@ export default function RotaCalendar() {
         </div>
       )}
 
-      {/* ── Carer hours summary ── */}
-      {carerSummary.length > 0 && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="px-5 py-3 border-b border-gray-200">
-            <h4 className="text-sm font-semibold text-hgc-900">
-              Monthly Summary — {MONTH_NAMES[month]} {year}
-            </h4>
+      {/* ── Monthly Summary (tabbed) ── */}
+      <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-5 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center gap-3">
+          <h4 className="text-sm font-semibold text-hgc-900">
+            Monthly Summary — {MONTH_NAMES[month]} {year}
+          </h4>
+          <div className="flex gap-1 sm:ml-auto">
+            <button
+              onClick={() => setSummaryTab('carers')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                summaryTab === 'carers'
+                  ? 'bg-hgc-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              Carer Hours
+            </button>
+            <button
+              onClick={() => setSummaryTab('unconfirmed')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
+                summaryTab === 'unconfirmed'
+                  ? 'bg-hgc-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              Unconfirmed Handovers
+            </button>
           </div>
+        </div>
+
+        {summaryTab === 'carers' && carerSummary.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -470,8 +513,68 @@ export default function RotaCalendar() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+
+        {summaryTab === 'unconfirmed' && (
+          <div>
+            {/* Month navigation for unconfirmed handovers */}
+            <div className="flex items-center justify-center gap-2 px-5 py-3 border-b border-gray-100">
+              <button
+                onClick={() => setUnconfirmedDate(new Date(unconfirmedYear, unconfirmedMonth - 1, 1))}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ChevronLeft size={16} className="text-gray-500" />
+              </button>
+              <span className="text-sm font-medium text-hgc-900 min-w-[140px] text-center">
+                {MONTH_NAMES[unconfirmedMonth]} {unconfirmedYear}
+              </span>
+              <button
+                onClick={() => setUnconfirmedDate(new Date(unconfirmedYear, unconfirmedMonth + 1, 1))}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ChevronRight size={16} className="text-gray-500" />
+              </button>
+            </div>
+
+            {unconfirmedHandoversList.length === 0 ? (
+              <div className="px-5 py-10 text-center text-sm text-gray-400">
+                No unconfirmed handovers this month
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left px-5 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Client Name</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Date of Unconfirmed Handover</th>
+                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Days Until Handover</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {unconfirmedHandoversList.map(row => (
+                      <tr key={row.id} className="hover:bg-gray-50/60 transition-colors duration-150">
+                        <td className="px-5 py-2.5 text-sm font-medium text-hgc-900">{row.clientName}</td>
+                        <td className="px-4 py-2.5 text-sm text-gray-600">
+                          {new Date(row.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-4 py-2.5 text-sm">
+                          {row.daysUntil < 0 ? (
+                            <span className="font-semibold text-red-600">Overdue</span>
+                          ) : row.daysUntil === 0 ? (
+                            <span className="font-semibold text-amber-600">Today</span>
+                          ) : (
+                            <span className="text-gray-600">{row.daysUntil} day{row.daysUntil !== 1 ? 's' : ''}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Modal ── */}
       {modal && (
