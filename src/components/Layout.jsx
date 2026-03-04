@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Calendar, Users, UserCheck, Receipt, LogOut } from 'lucide-react'
+import { Calendar, Users, UserCheck, Receipt, LogOut, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
@@ -10,7 +10,11 @@ const navItems = [
 ]
 
 export default function Layout({ children }) {
-  const { signOut } = useAuth()
+  const { signOut, isAdmin } = useAuth()
+
+  const allNavItems = isAdmin
+    ? [...navItems, { to: '/team', label: 'Team', icon: ShieldCheck }]
+    : navItems
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
@@ -35,7 +39,7 @@ export default function Layout({ children }) {
 
             {/* ── Desktop navigation ── */}
             <nav className="hidden md:flex items-center gap-1">
-              {navItems.map(({ to, label, icon: Icon }) => (
+              {allNavItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -69,7 +73,7 @@ export default function Layout({ children }) {
       {/* ── Mobile bottom navigation ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
         <div className="flex justify-around py-1.5 px-2">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {allNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

@@ -7,6 +7,7 @@ import RotaCalendar from './pages/RotaCalendar'
 import Clients from './pages/Clients'
 import Carers from './pages/Carers'
 import Payroll from './pages/Payroll'
+import Team from './pages/Team'
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -36,6 +37,7 @@ export default function App() {
                 <Route path="/carers" element={<Carers />} />
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/payroll" element={<Payroll />} />
+                <Route path="/team" element={<Team />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

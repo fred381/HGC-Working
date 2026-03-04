@@ -5,7 +5,21 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const fetchProfile = async (userId) => {
+    if (!supabase || !userId) {
+      setProfile(null)
+      return
+    }
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    setProfile(data)
+  }
 
   useEffect(() => {
     if (!supabase) {
@@ -14,15 +28,23 @@ export function AuthProvider({ children }) {
     }
 
     // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      if (currentUser) await fetchProfile(currentUser.id)
       setLoading(false)
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null)
+      async (_event, session) => {
+        const currentUser = session?.user ?? null
+        setUser(currentUser)
+        if (currentUser) {
+          await fetchProfile(currentUser.id)
+        } else {
+          setProfile(null)
+        }
       }
     )
 
@@ -30,8 +52,20 @@ export function AuthProvider({ children }) {
   }, [])
 
   const signIn = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+
+    // Check if user is deactivated
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('active')
+      .eq('id', data.user.id)
+      .single()
+
+    if (prof && !prof.active) {
+      await supabase.auth.signOut()
+      throw new Error('Your account has been deactivated. Contact your administrator.')
+    }
   }
 
   const signOut = async () => {
@@ -39,8 +73,10 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  const isAdmin = profile?.role === 'admin'
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )
