@@ -40,11 +40,13 @@ export default function Team() {
     setInviting(true)
 
     try {
+      const redirectUrl = `${window.location.origin}/auth/callback`
       const { error: inviteError } = await supabase.auth.signInWithOtp({
         email: inviteForm.email,
         options: {
           data: { name: inviteForm.name, role: 'staff' },
           shouldCreateUser: true,
+          emailRedirectTo: redirectUrl,
         },
       })
 

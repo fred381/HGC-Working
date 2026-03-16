@@ -6,6 +6,7 @@ import Clients from './pages/Clients'
 import Carers from './pages/Carers'
 import Payroll from './pages/Payroll'
 import Team from './pages/Team'
+import AuthCallback from './pages/AuthCallback'
 
 export default function App() {
   const { loading } = useApp()
@@ -20,6 +21,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/login" element={<Navigate to="/rota" replace />} />
       <Route
         path="/*"
