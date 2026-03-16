@@ -18,6 +18,16 @@ export function AuthProvider({ children }) {
       .select('*')
       .eq('id', userId)
       .single()
+
+    // If user has a session but profile is not confirmed, mark them confirmed
+    if (data && !data.confirmed) {
+      await supabase
+        .from('profiles')
+        .update({ confirmed: true })
+        .eq('id', userId)
+      data.confirmed = true
+    }
+
     setProfile(data)
   }
 
@@ -41,13 +51,6 @@ export function AuthProvider({ children }) {
         const currentUser = session?.user ?? null
         setUser(currentUser)
         if (currentUser) {
-          // Mark profile as confirmed on first sign-in (fire-and-forget)
-          supabase
-            .from('profiles')
-            .update({ confirmed: true })
-            .eq('id', currentUser.id)
-            .eq('confirmed', false)
-            .then(() => {})
           await fetchProfile(currentUser.id)
         } else {
           setProfile(null)

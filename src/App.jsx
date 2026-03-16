@@ -8,12 +8,11 @@ import Carers from './pages/Carers'
 import Payroll from './pages/Payroll'
 import Team from './pages/Team'
 import AuthCallback from './pages/AuthCallback'
+import SetPassword from './pages/SetPassword'
 
 function AdminRoute({ children }) {
   const { profile, loading } = useAuth()
-  // Don't redirect while auth is still loading
   if (loading) return null
-  // Only restrict when we have a confirmed non-admin profile
   if (profile && profile.role !== 'admin') return <Navigate to="/rota" replace />
   return children
 }
@@ -33,6 +32,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/set-password" element={<SetPassword />} />
       <Route path="/login" element={<Navigate to="/rota" replace />} />
       <Route
         path="/*"

@@ -66,14 +66,16 @@ create policy "Admins can delete profiles"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, name, email, role, invited_at)
+  insert into public.profiles (id, name, email, role, confirmed, invited_at)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', ''),
     coalesce(new.email, ''),
     coalesce(new.raw_user_meta_data->>'role', 'carer'),
+    false,
     now()
-  );
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$ language plpgsql security definer;
