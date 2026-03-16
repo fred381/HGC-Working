@@ -10,15 +10,19 @@ import Team from './pages/Team'
 import AuthCallback from './pages/AuthCallback'
 
 function AdminRoute({ children }) {
-  const { profile } = useAuth()
-  if (profile?.role !== 'admin') return <Navigate to="/rota" replace />
+  const { profile, loading } = useAuth()
+  // Don't redirect while auth is still loading
+  if (loading) return null
+  // Only restrict when we have a confirmed non-admin profile
+  if (profile && profile.role !== 'admin') return <Navigate to="/rota" replace />
   return children
 }
 
 export default function App() {
-  const { loading } = useApp()
+  const { loading: appLoading } = useApp()
+  const { loading: authLoading } = useAuth()
 
-  if (loading) {
+  if (appLoading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
         <div className="w-8 h-8 border-3 border-hgc-200 border-t-hgc-600 rounded-full animate-spin" />

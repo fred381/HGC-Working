@@ -42,7 +42,7 @@ const TAG_STYLES = {
 
 export default function RotaCalendar() {
   const { clients: allClients, carers: allCarers, shifts, tags, addShift, addShiftsBatch, updateShift, deleteShift, addTag, updateTag, deleteTag, getCarerStats } = useApp()
-  const { profile } = useAuth()
+  const { profile, loading: authLoading } = useAuth()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [modal, setModal] = useState(null)
   const [filterClientId, setFilterClientId] = useState('')
@@ -50,7 +50,8 @@ export default function RotaCalendar() {
   const [summaryTab, setSummaryTab] = useState('carers') // 'carers' | 'unconfirmed'
   const [unconfirmedDate, setUnconfirmedDate] = useState(() => new Date())
 
-  const isAdmin = profile?.role === 'admin'
+  // Default to admin when auth hasn't loaded yet or no profile exists
+  const isAdmin = authLoading || !profile || profile.role === 'admin'
 
   // Match the logged-in carer user to their carer profile by email
   const linkedCarerId = useMemo(() => {

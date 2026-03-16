@@ -41,12 +41,13 @@ export function AuthProvider({ children }) {
         const currentUser = session?.user ?? null
         setUser(currentUser)
         if (currentUser) {
-          // Mark profile as confirmed on first sign-in
-          await supabase
+          // Mark profile as confirmed on first sign-in (fire-and-forget)
+          supabase
             .from('profiles')
             .update({ confirmed: true })
             .eq('id', currentUser.id)
             .eq('confirmed', false)
+            .then(() => {})
           await fetchProfile(currentUser.id)
         } else {
           setProfile(null)

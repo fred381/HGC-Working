@@ -11,8 +11,10 @@ const allNavItems = [
 ]
 
 export default function Layout({ children }) {
-  const { profile, signOut } = useAuth()
-  const userRole = profile?.role || 'carer'
+  const { profile, loading, signOut } = useAuth()
+  // While auth is loading, show all nav items to avoid flash of restricted UI
+  // Once loaded, use the actual role (default to admin if no profile/no auth)
+  const userRole = loading ? 'admin' : (profile?.role || 'admin')
   const visibleNavItems = allNavItems.filter(item => item.roles.includes(userRole))
 
   return (
