@@ -1,16 +1,19 @@
 import { NavLink } from 'react-router-dom'
-import { Calendar, Users, UserCheck, Receipt, ShieldCheck } from 'lucide-react'
+import { Calendar, Users, UserCheck, Receipt, ShieldCheck, LogOut } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
-const navItems = [
-  { to: '/rota', label: 'Rota', icon: Calendar },
-  { to: '/carers', label: 'Carers', icon: UserCheck },
-  { to: '/clients', label: 'Clients', icon: Users },
-  { to: '/payroll', label: 'Payroll', icon: Receipt },
-  { to: '/team', label: 'Team', icon: ShieldCheck },
+const allNavItems = [
+  { to: '/rota', label: 'Rota', icon: Calendar, roles: ['admin', 'carer'] },
+  { to: '/carers', label: 'Carers', icon: UserCheck, roles: ['admin'] },
+  { to: '/clients', label: 'Clients', icon: Users, roles: ['admin'] },
+  { to: '/payroll', label: 'Payroll', icon: Receipt, roles: ['admin'] },
+  { to: '/team', label: 'Team', icon: ShieldCheck, roles: ['admin'] },
 ]
 
 export default function Layout({ children }) {
-  const allNavItems = navItems
+  const { profile, signOut } = useAuth()
+  const userRole = profile?.role || 'carer'
+  const visibleNavItems = allNavItems.filter(item => item.roles.includes(userRole))
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F7FA]">
@@ -35,7 +38,7 @@ export default function Layout({ children }) {
 
             {/* ── Desktop navigation ── */}
             <nav className="hidden md:flex items-center gap-1">
-              {allNavItems.map(({ to, label, icon: Icon }) => (
+              {visibleNavItems.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
@@ -53,8 +56,17 @@ export default function Layout({ children }) {
               ))}
             </nav>
 
-            {/* Spacer (sign-out hidden for demo) */}
-            <div />
+            {/* Sign out */}
+            {profile && (
+              <button
+                onClick={signOut}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-hgc-200 hover:text-white hover:bg-white/10 transition-all duration-200"
+                title="Sign out"
+              >
+                <LogOut size={16} />
+                <span className="hidden lg:inline">Sign out</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -62,7 +74,7 @@ export default function Layout({ children }) {
       {/* ── Mobile bottom navigation ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
         <div className="flex justify-around py-1.5 px-2">
-          {allNavItems.map(({ to, label, icon: Icon }) => (
+          {visibleNavItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}

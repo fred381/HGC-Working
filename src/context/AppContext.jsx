@@ -12,6 +12,7 @@ function carerFromRow(r) {
     name: r.name,
     employeeId: r.employee_id,
     role: r.role,
+    email: r.email || '',
     contactNumber: r.contact_number,
     dailyRate: parseFloat(r.daily_rate) || 0,
     active: r.active,
@@ -115,6 +116,7 @@ export function AppProvider({ children }) {
       name: data.name,
       employee_id: data.employeeId || '',
       role: data.role || 'Carer',
+      email: data.email || '',
       contact_number: data.contactNumber || '',
       daily_rate: parseFloat(data.dailyRate) || 0,
       active: true,
@@ -129,6 +131,7 @@ export function AppProvider({ children }) {
     if (data.name !== undefined) updates.name = data.name
     if (data.employeeId !== undefined) updates.employee_id = data.employeeId
     if (data.role !== undefined) updates.role = data.role
+    if (data.email !== undefined) updates.email = data.email
     if (data.contactNumber !== undefined) updates.contact_number = data.contactNumber
     if (data.dailyRate !== undefined) updates.daily_rate = parseFloat(data.dailyRate) || 0
     if (data.active !== undefined) updates.active = data.active
@@ -142,6 +145,7 @@ export function AppProvider({ children }) {
             name: data.name ?? c.name,
             employeeId: data.employeeId ?? c.employeeId,
             role: data.role ?? c.role,
+            email: data.email ?? c.email,
             contactNumber: data.contactNumber ?? c.contactNumber,
             dailyRate: data.dailyRate !== undefined ? (parseFloat(data.dailyRate) || 0) : c.dailyRate,
             active: data.active !== undefined ? data.active : c.active,

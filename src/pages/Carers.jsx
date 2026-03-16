@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 import { CARER_ROLES } from '../data/store'
 import { Plus, Pencil, X, Search, Phone, UserCheck, UserX } from 'lucide-react'
 
-const emptyForm = { name: '', employeeId: '', role: 'Carer', contactNumber: '', dailyRate: '' }
+const emptyForm = { name: '', employeeId: '', role: 'Carer', email: '', contactNumber: '', dailyRate: '' }
 
 export default function Carers() {
   const { carers, addCarer, updateCarer, deleteCarer, getCarerStats } = useApp()
@@ -44,6 +44,7 @@ export default function Carers() {
       name: carer.name,
       employeeId: carer.employeeId || '',
       role: carer.role || 'Carer',
+      email: carer.email || '',
       contactNumber: carer.contactNumber || '',
       dailyRate: carer.dailyRate ?? '',
     })
@@ -318,6 +319,11 @@ function CarerModal({ form, setForm, editingId, onSubmit, onClose, onDelete }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
               <input ref={nameRef} type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200" placeholder="e.g. Amina Osei" required />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hgc-600 focus:border-transparent outline-none transition-shadow duration-200" placeholder="e.g. amina@hamiltongeorgecare.com" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>

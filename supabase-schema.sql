@@ -10,6 +10,7 @@ create table carers (
   employee_id text not null default '',
   role        text not null default 'Carer',
   contact_number text not null default '',
+  email       text not null default '',
   daily_rate  numeric(10,2) not null default 0,
   active      boolean not null default true,
   created_at  timestamptz not null default now()

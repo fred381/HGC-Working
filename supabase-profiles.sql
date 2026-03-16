@@ -5,12 +5,14 @@
 
 -- 1. Profiles table (linked to Supabase Auth users)
 create table profiles (
-  id         uuid primary key references auth.users(id) on delete cascade,
-  name       text not null default '',
-  email      text not null default '',
-  role       text not null default 'staff' check (role in ('admin', 'staff')),
-  active     boolean not null default true,
-  created_at timestamptz not null default now()
+  id          uuid primary key references auth.users(id) on delete cascade,
+  name        text not null default '',
+  email       text not null default '',
+  role        text not null default 'carer' check (role in ('admin', 'carer')),
+  active      boolean not null default true,
+  confirmed   boolean not null default false,
+  invited_at  timestamptz,
+  created_at  timestamptz not null default now()
 );
 
 -- Index for quick role lookups
@@ -50,16 +52,27 @@ create policy "Admins can insert profiles"
     )
   );
 
+-- Admins can delete profiles (for cancelling invitations)
+create policy "Admins can delete profiles"
+  on profiles for delete
+  using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
 -- 2. Auto-create a profile when a new user signs up or is invited
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, name, email, role)
+  insert into public.profiles (id, name, email, role, invited_at)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'name', ''),
     coalesce(new.email, ''),
-    coalesce(new.raw_user_meta_data->>'role', 'staff')
+    coalesce(new.raw_user_meta_data->>'role', 'carer'),
+    now()
   );
   return new;
 end;

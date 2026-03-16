@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import { SHIFT_TYPES } from '../data/store'
 import { ChevronLeft, ChevronRight, X, Plus, Trash2, Clock, CalendarDays, Users, AlertTriangle, Filter } from 'lucide-react'
 import { MONTH_NAMES, getDaysInMonth, formatDate } from '../utils/dates'
@@ -41,12 +42,29 @@ const TAG_STYLES = {
 
 export default function RotaCalendar() {
   const { clients: allClients, carers: allCarers, shifts, tags, addShift, addShiftsBatch, updateShift, deleteShift, addTag, updateTag, deleteTag, getCarerStats } = useApp()
+  const { profile } = useAuth()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [modal, setModal] = useState(null)
   const [filterClientId, setFilterClientId] = useState('')
   const [filterCarerId, setFilterCarerId] = useState('')
   const [summaryTab, setSummaryTab] = useState('carers') // 'carers' | 'unconfirmed'
   const [unconfirmedDate, setUnconfirmedDate] = useState(() => new Date())
+
+  const isAdmin = profile?.role === 'admin'
+
+  // Match the logged-in carer user to their carer profile by email
+  const linkedCarerId = useMemo(() => {
+    if (isAdmin || !profile?.email) return null
+    const match = allCarers.find(c => c.email && c.email.toLowerCase() === profile.email.toLowerCase())
+    return match?.id || null
+  }, [isAdmin, profile, allCarers])
+
+  // Auto-filter for carer users on mount
+  useEffect(() => {
+    if (!isAdmin && linkedCarerId) {
+      setFilterCarerId(linkedCarerId)
+    }
+  }, [isAdmin, linkedCarerId])
 
   const clients = useMemo(() => allClients.filter(c => c.active !== false), [allClients])
   const carers = allCarers
@@ -288,8 +306,8 @@ export default function RotaCalendar() {
         </div>
       )}
 
-      {/* ── Filter bar ── */}
-      {clients.length > 0 && (
+      {/* ── Filter bar (admin only) ── */}
+      {isAdmin && clients.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-4 py-3 mb-4 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 text-gray-400">
             <Filter size={15} />

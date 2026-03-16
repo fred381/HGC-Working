@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useApp } from './context/AppContext'
+import { useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import RotaCalendar from './pages/RotaCalendar'
 import Clients from './pages/Clients'
@@ -7,6 +8,12 @@ import Carers from './pages/Carers'
 import Payroll from './pages/Payroll'
 import Team from './pages/Team'
 import AuthCallback from './pages/AuthCallback'
+
+function AdminRoute({ children }) {
+  const { profile } = useAuth()
+  if (profile?.role !== 'admin') return <Navigate to="/rota" replace />
+  return children
+}
 
 export default function App() {
   const { loading } = useApp()
@@ -30,10 +37,10 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/rota" replace />} />
               <Route path="/rota" element={<RotaCalendar />} />
-              <Route path="/carers" element={<Carers />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/payroll" element={<Payroll />} />
-              <Route path="/team" element={<Team />} />
+              <Route path="/carers" element={<AdminRoute><Carers /></AdminRoute>} />
+              <Route path="/clients" element={<AdminRoute><Clients /></AdminRoute>} />
+              <Route path="/payroll" element={<AdminRoute><Payroll /></AdminRoute>} />
+              <Route path="/team" element={<AdminRoute><Team /></AdminRoute>} />
             </Routes>
           </Layout>
         }
